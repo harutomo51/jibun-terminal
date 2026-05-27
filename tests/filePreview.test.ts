@@ -72,6 +72,16 @@ describe('createPreviewDataUrl', () => {
     expect(html).toContain('<article class="markdown preview-card">');
   });
 
+  it('uses smaller markdown heading sizes', () => {
+    const dataUrl = createPreviewDataUrl('README.md', '# H1\n\n## H2\n\n### H3', 'markdown');
+    const html = decodeURIComponent(dataUrl.replace('data:text/html;charset=utf-8,', ''));
+
+    expect(html).toContain('line-height: 1.32;');
+    expect(html).toContain('.markdown h1 { margin: 0 0 22px; font-size: 32px; }');
+    expect(html).toContain('.markdown h2 { margin: 32px 0 14px; font-size: 23px; }');
+    expect(html).toContain('.markdown h3 { margin: 24px 0 12px; font-size: 17px; }');
+  });
+
   it('keeps html previews unframed so the document owns its own layout', () => {
     const dataUrl = createPreviewDataUrl('report.html', '<h1>Report</h1>', 'html');
     const html = decodeURIComponent(dataUrl.replace('data:text/html;charset=utf-8,', ''));

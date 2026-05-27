@@ -249,11 +249,11 @@ function createPreviewHtml(filePath: string, content: string, kind: FilePreviewK
         font-family: var(--font-serif);
         font-weight: 500;
         letter-spacing: 0;
-        line-height: 1.15;
+        line-height: 1.32;
       }
-      .markdown h1 { margin: 0 0 24px; font-size: 48px; }
-      .markdown h2 { margin: 38px 0 14px; font-size: 34px; }
-      .markdown h3 { margin: 28px 0 12px; font-size: 26px; }
+      .markdown h1 { margin: 0 0 22px; font-size: 32px; }
+      .markdown h2 { margin: 32px 0 14px; font-size: 23px; }
+      .markdown h3 { margin: 24px 0 12px; font-size: 17px; }
       .markdown p,
       .markdown li { margin-bottom: 12px; }
       .markdown ul,
