@@ -2,8 +2,9 @@ import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Terminal } from '@xterm/xterm';
 import { useEffect, useRef, useState } from 'react';
-import { getTerminalBridge } from '../lib/terminalBridge';
 import type { AppLogEntry } from '../App';
+import { getTerminalBridge } from '../lib/terminalBridge';
+import { shouldForwardTabToPty } from '../lib/terminalKeys';
 
 interface TerminalViewProps {
   restartToken: number;
@@ -24,7 +25,6 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
 
     let removeDataListener: () => void = () => undefined;
     let removeExitListener: () => void = () => undefined;
-    let disposed = false;
 
     const terminal = new Terminal({
       cursorBlink: true,
@@ -51,6 +51,19 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
     fitAddonRef.current = fitAddon;
 
     const bridge = getTerminalBridge();
+
+    terminal.attachCustomKeyEventHandler((event) => {
+      if (event.type === 'keydown' && shouldForwardTabToPty(event)) {
+        event.preventDefault();
+        bridge.input('\t').catch((inputError: unknown) => {
+          console.error('Renderer tab IPC failed', inputError);
+          setError('TabキーをPTYへ送信できませんでした。');
+        });
+        return false;
+      }
+
+      return true;
+    });
 
     const resizePty = () => {
       try {
@@ -103,14 +116,12 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
     void start();
 
     return () => {
-      disposed = true;
       observer.disconnect();
       removeDataListener();
       removeExitListener();
       terminal.dispose();
       terminalRef.current = null;
       fitAddonRef.current = null;
-      void disposed;
     };
   }, [restartToken, onLog, onShellChange]);
 
