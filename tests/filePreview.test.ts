@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { createPreviewDataUrl, detectPreviewKind, resolvePreviewPath } from '../electron/filePreview/filePreview';
+import {
+  createPreviewDataUrl,
+  detectHighlightLanguage,
+  detectPreviewKind,
+  resolvePreviewPath
+} from '../electron/filePreview/filePreview';
 
 describe('detectPreviewKind', () => {
   it('detects markdown files', () => {
@@ -15,6 +20,18 @@ describe('detectPreviewKind', () => {
   it('treats source files as code', () => {
     expect(detectPreviewKind('src/App.tsx')).toBe('code');
     expect(detectPreviewKind('script.ps1')).toBe('code');
+  });
+});
+
+describe('detectHighlightLanguage', () => {
+  it('maps source file extensions to highlight.js languages', () => {
+    expect(detectHighlightLanguage('src/App.tsx')).toBe('typescript');
+    expect(detectHighlightLanguage('script.ps1')).toBe('powershell');
+    expect(detectHighlightLanguage('package.json')).toBe('json');
+  });
+
+  it('leaves plain text files without a highlight language', () => {
+    expect(detectHighlightLanguage('notes.txt')).toBeUndefined();
   });
 });
 
@@ -62,5 +79,31 @@ describe('createPreviewDataUrl', () => {
     expect(html).toContain('<main class="html-main">');
     expect(html).toContain('<iframe sandbox="allow-scripts"');
     expect(html).not.toContain('<section class="html-preview">');
+  });
+
+  it('uses a wider canvas for non-html previews', () => {
+    const dataUrl = createPreviewDataUrl('README.md', '# Wide document', 'markdown');
+    const html = decodeURIComponent(dataUrl.replace('data:text/html;charset=utf-8,', ''));
+
+    expect(html).toContain('width: min(100%, 1440px);');
+    expect(html).toContain('max-width: 1180px;');
+    expect(html).not.toContain('<main class="html-main">');
+  });
+
+  it('renders source files with highlight.js classes', () => {
+    const dataUrl = createPreviewDataUrl('src/App.tsx', 'const answer = 42;', 'code');
+    const html = decodeURIComponent(dataUrl.replace('data:text/html;charset=utf-8,', ''));
+
+    expect(html).toContain('class="hljs language-typescript"');
+    expect(html).toContain('hljs-keyword');
+    expect(html).toContain('--font-number: "Cambria Math", "Noto Sans JP", serif;');
+  });
+
+  it('keeps unknown text previews escaped without language classes', () => {
+    const dataUrl = createPreviewDataUrl('notes.txt', '<hello>', 'text');
+    const html = decodeURIComponent(dataUrl.replace('data:text/html;charset=utf-8,', ''));
+
+    expect(html).toContain('class="hljs"');
+    expect(html).toContain('&lt;hello&gt;');
   });
 });

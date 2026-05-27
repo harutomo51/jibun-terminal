@@ -1,13 +1,17 @@
 import { BrowserWindow } from 'electron';
 import { readFile, stat } from 'node:fs/promises';
 import { basename, extname, isAbsolute, resolve, sep } from 'node:path';
+import hljs from 'highlight.js/lib/common';
 import MarkdownIt from 'markdown-it';
 import type { FilePreviewKind, FilePreviewOpenResult } from './types';
 
 const markdown = new MarkdownIt({
   html: false,
   linkify: true,
-  typographer: true
+  typographer: true,
+  highlight(value, language) {
+    return highlightCode(value, language);
+  }
 });
 
 const CODE_EXTENSIONS = new Set([
@@ -36,6 +40,30 @@ const CODE_EXTENSIONS = new Set([
 
 const MAX_PREVIEW_BYTES = 1_000_000;
 
+const HIGHLIGHT_LANGUAGE_BY_EXTENSION = new Map<string, string>([
+  ['.bat', 'dos'],
+  ['.c', 'c'],
+  ['.cmd', 'dos'],
+  ['.cpp', 'cpp'],
+  ['.cs', 'csharp'],
+  ['.css', 'css'],
+  ['.go', 'go'],
+  ['.java', 'java'],
+  ['.js', 'javascript'],
+  ['.jsx', 'javascript'],
+  ['.json', 'json'],
+  ['.mdx', 'markdown'],
+  ['.ps1', 'powershell'],
+  ['.py', 'python'],
+  ['.rs', 'rust'],
+  ['.sh', 'bash'],
+  ['.ts', 'typescript'],
+  ['.tsx', 'typescript'],
+  ['.xml', 'xml'],
+  ['.yaml', 'yaml'],
+  ['.yml', 'yaml']
+]);
+
 export function detectPreviewKind(filePath: string): FilePreviewKind {
   const extension = extname(filePath).toLowerCase();
   if (extension === '.md' || extension === '.markdown') {
@@ -48,6 +76,10 @@ export function detectPreviewKind(filePath: string): FilePreviewKind {
     return 'code';
   }
   return 'text';
+}
+
+export function detectHighlightLanguage(filePath: string): string | undefined {
+  return HIGHLIGHT_LANGUAGE_BY_EXTENSION.get(extname(filePath).toLowerCase());
 }
 
 export function resolvePreviewPath(rootPath: string, relativePath: string): string {
@@ -112,7 +144,7 @@ export function createPreviewDataUrl(filePath: string, content: string, kind: Fi
 
 function createPreviewHtml(filePath: string, content: string, kind: FilePreviewKind): string {
   const title = escapeHtml(filePath);
-  const body = renderPreviewBody(content, kind);
+  const body = renderPreviewBody(filePath, content, kind);
 
   return `<!doctype html>
 <html lang="ja">
@@ -190,7 +222,7 @@ function createPreviewHtml(filePath: string, content: string, kind: FilePreviewK
         vertical-align: middle;
       }
       main {
-        width: min(100%, 1120px);
+        width: min(100%, 1440px);
         margin: 0 auto;
         padding: 48px 28px 72px;
       }
@@ -207,7 +239,7 @@ function createPreviewHtml(filePath: string, content: string, kind: FilePreviewK
         padding: 32px;
       }
       .markdown {
-        max-width: 880px;
+        max-width: 1180px;
         color: var(--preview-body);
       }
       .markdown h1,
@@ -258,6 +290,45 @@ function createPreviewHtml(filePath: string, content: string, kind: FilePreviewK
         background: var(--preview-dark);
         padding: 24px;
       }
+      .hljs {
+        background: transparent;
+        color: var(--preview-on-dark);
+      }
+      .hljs-keyword,
+      .hljs-built_in,
+      .hljs-type,
+      .hljs-selector-tag {
+        color: #f7a88a;
+      }
+      .hljs-string,
+      .hljs-attr,
+      .hljs-symbol {
+        color: #c7e88b;
+      }
+      .hljs-number,
+      .hljs-literal {
+        color: #f0cf74;
+        font-family: var(--font-number);
+      }
+      .hljs-title,
+      .hljs-name,
+      .hljs-section {
+        color: #8fc7ff;
+      }
+      .hljs-comment,
+      .hljs-quote {
+        color: #8d9287;
+        font-style: italic;
+      }
+      .hljs-variable,
+      .hljs-template-variable {
+        color: #ffd2a6;
+      }
+      .hljs-meta,
+      .hljs-operator,
+      .hljs-punctuation {
+        color: #d8d4c8;
+      }
       iframe {
         width: 100%;
         min-height: calc(100vh - 63px);
@@ -274,7 +345,7 @@ function createPreviewHtml(filePath: string, content: string, kind: FilePreviewK
 </html>`;
 }
 
-function renderPreviewBody(content: string, kind: FilePreviewKind): string {
+function renderPreviewBody(filePath: string, content: string, kind: FilePreviewKind): string {
   if (kind === 'markdown') {
     return `<article class="markdown preview-card">${markdown.render(content)}</article>`;
   }
@@ -283,7 +354,18 @@ function renderPreviewBody(content: string, kind: FilePreviewKind): string {
     return `<iframe sandbox="allow-scripts" srcdoc="${escapeAttribute(content)}"></iframe>`;
   }
 
-  return `<section class="code-preview"><pre><code>${escapeHtml(content)}</code></pre></section>`;
+  const language = detectHighlightLanguage(filePath);
+  const highlighted = highlightCode(content, language);
+  const languageClass = language ? ` language-${escapeHtml(language)}` : '';
+  return `<section class="code-preview"><pre><code class="hljs${languageClass}">${highlighted}</code></pre></section>`;
+}
+
+function highlightCode(value: string, language?: string): string {
+  if (language && hljs.getLanguage(language)) {
+    return hljs.highlight(value, { language, ignoreIllegals: true }).value;
+  }
+
+  return escapeHtml(value);
 }
 
 function escapeHtml(value: string): string {
