@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
+import { readFileTree } from './fileTree/fileTree';
+import { FILE_TREE_CHANNELS } from './fileTree/types';
 import { PtyManager } from './terminal/ptyManager';
 import { TERMINAL_CHANNELS, type TerminalResizePayload } from './terminal/types';
 
@@ -28,6 +30,10 @@ function createWindow(): void {
 
   ptyManager.onExit((payload) => {
     mainWindow?.webContents.send(TERMINAL_CHANNELS.onExit, payload);
+  });
+
+  ptyManager.onCwdChange((payload) => {
+    mainWindow?.webContents.send(TERMINAL_CHANNELS.onCwdChange, payload);
   });
 
   if (process.env.ELECTRON_RENDERER_URL) {
@@ -66,6 +72,7 @@ app.on('window-all-closed', () => {
 });
 
 function registerIpcHandlers(): void {
+  ipcMain.handle(FILE_TREE_CHANNELS.list, () => readFileTree(ptyManager.getCurrentCwd()));
   ipcMain.handle(TERMINAL_CHANNELS.start, () => ptyManager.start());
   ipcMain.handle(TERMINAL_CHANNELS.restart, () => ptyManager.restart());
   ipcMain.handle(TERMINAL_CHANNELS.input, (_event, data: string) => {

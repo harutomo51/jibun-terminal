@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { FilePanel } from './components/FilePanel';
 import { StatusPanel } from './components/StatusPanel';
 import { TerminalView } from './components/TerminalView';
 import { TopBar } from './components/TopBar';
@@ -85,7 +86,10 @@ export default function App(): JSX.Element {
           onShellChange={setShellName}
           onLog={addLog}
         />
-        <StatusPanel logs={logs} />
+        <aside className="side-panel">
+          <FilePanel />
+          <StatusPanel logs={logs} />
+        </aside>
       </section>
     </main>
   );

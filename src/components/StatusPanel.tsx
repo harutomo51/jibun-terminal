@@ -6,11 +6,11 @@ interface StatusPanelProps {
 
 export function StatusPanel({ logs }: StatusPanelProps): JSX.Element {
   return (
-    <aside className="status-panel" aria-label="terminal status log">
+    <section className="status-panel" aria-label="terminal status log">
       <h2>Log</h2>
       <div className="status-panel__items">
         {logs.length === 0 ? (
-          <p className="status-panel__empty">起動ログがここに表示されます。</p>
+          <p className="panel-empty">起動ログがここに表示されます。</p>
         ) : (
           logs.map((log) => (
             <p className={`status-panel__item status-panel__item--${log.level}`} key={`${log.timestamp}-${log.message}`}>
@@ -20,6 +20,6 @@ export function StatusPanel({ logs }: StatusPanelProps): JSX.Element {
           ))
         )}
       </div>
-    </aside>
+    </section>
   );
 }

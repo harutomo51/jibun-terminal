@@ -2,8 +2,9 @@ import { EventEmitter } from 'node:events';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
 import type { IPty } from 'node-pty';
+import { createPowerShellPromptScript, extractOsc7Cwd } from './cwdTracker';
 import { resolvePowerShellCandidate } from './shellResolver';
-import type { ShellInfo, TerminalExitPayload, TerminalResizePayload, TerminalStartResult } from './types';
+import type { ShellInfo, TerminalCwdChangePayload, TerminalExitPayload, TerminalResizePayload, TerminalStartResult } from './types';
 
 type PtyModule = typeof import('node-pty');
 
@@ -12,9 +13,11 @@ export class PtyManager {
   private shell: ShellInfo | null = null;
   private readonly events = new EventEmitter();
   private readonly cwd: string;
+  private currentCwd: string;
 
   constructor(cwd = resolve(process.cwd())) {
     this.cwd = cwd || homedir();
+    this.currentCwd = this.cwd;
   }
 
   onData(listener: (data: string) => void): () => void {
@@ -25,6 +28,15 @@ export class PtyManager {
   onExit(listener: (payload: TerminalExitPayload) => void): () => void {
     this.events.on('exit', listener);
     return () => this.events.off('exit', listener);
+  }
+
+  onCwdChange(listener: (payload: TerminalCwdChangePayload) => void): () => void {
+    this.events.on('cwdChange', listener);
+    return () => this.events.off('cwdChange', listener);
+  }
+
+  getCurrentCwd(): string {
+    return this.currentCwd;
   }
 
   async start(): Promise<TerminalStartResult> {
@@ -40,7 +52,8 @@ export class PtyManager {
     try {
       const pty = await this.loadPty();
       this.shell = shell;
-      this.ptyProcess = pty.spawn(shell.name, [], {
+      this.currentCwd = this.cwd;
+      this.ptyProcess = pty.spawn(shell.name, ['-NoLogo', '-NoExit', '-Command', createPowerShellPromptScript()], {
         name: 'xterm-256color',
         cols: 100,
         rows: 30,
@@ -48,7 +61,10 @@ export class PtyManager {
         env: process.env
       });
 
-      this.ptyProcess.onData((data) => this.events.emit('data', data));
+      this.ptyProcess.onData((data) => {
+        this.updateCurrentCwd(data);
+        this.events.emit('data', data);
+      });
       this.ptyProcess.onExit((event) => {
         const payload: TerminalExitPayload = {
           exitCode: event.exitCode,
@@ -114,5 +130,15 @@ export class PtyManager {
       console.error('Failed to load node-pty', error);
       throw new Error('node-pty のロードに失敗しました。npm install の結果とWindowsビルド環境を確認してください。');
     }
+  }
+
+  private updateCurrentCwd(data: string): void {
+    const cwd = extractOsc7Cwd(data);
+    if (!cwd || cwd === this.currentCwd) {
+      return;
+    }
+
+    this.currentCwd = cwd;
+    this.events.emit('cwdChange', { cwd });
   }
 }

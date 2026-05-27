@@ -9,7 +9,8 @@ describe('TERMINAL_CHANNELS', () => {
       resize: 'terminal:resize',
       restart: 'terminal:restart',
       onData: 'terminal:onData',
-      onExit: 'terminal:onExit'
+      onExit: 'terminal:onExit',
+      onCwdChange: 'terminal:onCwdChange'
     });
   });
 });

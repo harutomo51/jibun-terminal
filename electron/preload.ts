@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import { TERMINAL_CHANNELS, type TerminalBridgeApi, type TerminalExitPayload, type TerminalResizePayload, type TerminalStartResult } from './terminal/types';
+import { FILE_TREE_CHANNELS, type FileTreeBridgeApi, type FileTreeResult } from './fileTree/types';
+import { TERMINAL_CHANNELS, type TerminalBridgeApi, type TerminalCwdChangePayload, type TerminalExitPayload, type TerminalResizePayload, type TerminalStartResult } from './terminal/types';
 
 const terminalApi: TerminalBridgeApi = {
   start: () => ipcRenderer.invoke(TERMINAL_CHANNELS.start) as Promise<TerminalStartResult>,
@@ -15,7 +16,17 @@ const terminalApi: TerminalBridgeApi = {
     const listener = (_event: Electron.IpcRendererEvent, payload: TerminalExitPayload) => callback(payload);
     ipcRenderer.on(TERMINAL_CHANNELS.onExit, listener);
     return () => ipcRenderer.off(TERMINAL_CHANNELS.onExit, listener);
+  },
+  onCwdChange: (callback: (payload: TerminalCwdChangePayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: TerminalCwdChangePayload) => callback(payload);
+    ipcRenderer.on(TERMINAL_CHANNELS.onCwdChange, listener);
+    return () => ipcRenderer.off(TERMINAL_CHANNELS.onCwdChange, listener);
   }
 };
 
+const fileTreeApi: FileTreeBridgeApi = {
+  list: () => ipcRenderer.invoke(FILE_TREE_CHANNELS.list) as Promise<FileTreeResult>
+};
+
 contextBridge.exposeInMainWorld('terminalApi', terminalApi);
+contextBridge.exposeInMainWorld('fileTreeApi', fileTreeApi);
