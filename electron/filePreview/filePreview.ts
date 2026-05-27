@@ -1,0 +1,300 @@
+import { BrowserWindow } from 'electron';
+import { readFile, stat } from 'node:fs/promises';
+import { basename, extname, isAbsolute, resolve, sep } from 'node:path';
+import MarkdownIt from 'markdown-it';
+import type { FilePreviewKind, FilePreviewOpenResult } from './types';
+
+const markdown = new MarkdownIt({
+  html: false,
+  linkify: true,
+  typographer: true
+});
+
+const CODE_EXTENSIONS = new Set([
+  '.bat',
+  '.c',
+  '.cmd',
+  '.cpp',
+  '.cs',
+  '.css',
+  '.go',
+  '.java',
+  '.js',
+  '.jsx',
+  '.json',
+  '.mdx',
+  '.ps1',
+  '.py',
+  '.rs',
+  '.sh',
+  '.ts',
+  '.tsx',
+  '.xml',
+  '.yaml',
+  '.yml'
+]);
+
+const MAX_PREVIEW_BYTES = 1_000_000;
+
+export function detectPreviewKind(filePath: string): FilePreviewKind {
+  const extension = extname(filePath).toLowerCase();
+  if (extension === '.md' || extension === '.markdown') {
+    return 'markdown';
+  }
+  if (extension === '.html' || extension === '.htm') {
+    return 'html';
+  }
+  if (CODE_EXTENSIONS.has(extension)) {
+    return 'code';
+  }
+  return 'text';
+}
+
+export function resolvePreviewPath(rootPath: string, relativePath: string): string {
+  if (isAbsolute(relativePath)) {
+    throw new Error('Preview path must be relative.');
+  }
+
+  const root = resolve(rootPath);
+  const target = resolve(root, relativePath);
+  const normalizedRoot = root.toLowerCase();
+  const normalizedTarget = target.toLowerCase();
+
+  if (normalizedTarget !== normalizedRoot && !normalizedTarget.startsWith(`${normalizedRoot}${sep}`)) {
+    throw new Error('Preview path is outside the current directory.');
+  }
+
+  return target;
+}
+
+export async function openFilePreview(rootPath: string, relativePath: string): Promise<FilePreviewOpenResult> {
+  try {
+    const absolutePath = resolvePreviewPath(rootPath, relativePath);
+    const fileStat = await stat(absolutePath);
+
+    if (!fileStat.isFile()) {
+      return { ok: false, error: 'ファイルだけプレビューできます。' };
+    }
+
+    if (fileStat.size > MAX_PREVIEW_BYTES) {
+      return { ok: false, error: '1MBを超えるファイルはプレビュー対象外です。' };
+    }
+
+    const content = await readFile(absolutePath, 'utf8');
+    const previewWindow = new BrowserWindow({
+      width: 920,
+      height: 720,
+      minWidth: 520,
+      minHeight: 420,
+      title: `Preview - ${basename(absolutePath)}`,
+      backgroundColor: '#10131a',
+      webPreferences: {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
+      }
+    });
+
+    await previewWindow.loadURL(createPreviewDataUrl(absolutePath, content, detectPreviewKind(absolutePath)));
+    return { ok: true };
+  } catch (error) {
+    console.error('Failed to open file preview', error);
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'ファイルプレビューを開けませんでした。'
+    };
+  }
+}
+
+export function createPreviewDataUrl(filePath: string, content: string, kind: FilePreviewKind): string {
+  return `data:text/html;charset=utf-8,${encodeURIComponent(createPreviewHtml(filePath, content, kind))}`;
+}
+
+function createPreviewHtml(filePath: string, content: string, kind: FilePreviewKind): string {
+  const title = escapeHtml(filePath);
+  const body = renderPreviewBody(content, kind);
+
+  return `<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${title}</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --preview-canvas: #faf9f5;
+        --preview-soft: #f5f0e8;
+        --preview-card: #efe9de;
+        --preview-hairline: #e6dfd8;
+        --preview-ink: #141413;
+        --preview-body: #3d3d3a;
+        --preview-muted: #6c6a64;
+        --preview-primary: #cc785c;
+        --preview-primary-active: #a9583e;
+        --preview-dark: #181715;
+        --preview-dark-soft: #1f1e1b;
+        --preview-on-dark: #faf9f5;
+        --font-standard: "Noto Sans JP", "Note Sans JP", system-ui, sans-serif;
+        --font-serif: "Noto Sans JP", "Note Sans JP", serif;
+        --font-sans: "Noto Sans JP", "Note Sans JP", system-ui, sans-serif;
+        --font-mono: "BIZ UDGothic", "Cascadia Mono", Consolas, monospace;
+        --font-number: "Cambria Math", "Noto Sans JP", serif;
+        font-family: var(--font-standard);
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        background: var(--preview-canvas);
+        color: var(--preview-body);
+        font-size: 16px;
+        line-height: 1.65;
+      }
+      header {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        padding: 18px 28px;
+        border-bottom: 1px solid var(--preview-hairline);
+        background: rgba(250, 249, 245, .94);
+        backdrop-filter: blur(14px);
+      }
+      header::before {
+        content: "*";
+        display: inline-grid;
+        width: 26px;
+        height: 26px;
+        margin-right: 10px;
+        place-items: center;
+        border-radius: 50%;
+        color: var(--preview-on-dark);
+        background: var(--preview-primary);
+        font-family: var(--font-number);
+        font-size: 22px;
+        line-height: 1;
+        vertical-align: middle;
+      }
+      h1 {
+        display: inline-block;
+        max-width: calc(100% - 44px);
+        margin: 0;
+        overflow: hidden;
+        color: var(--preview-ink);
+        font-family: var(--font-serif);
+        font-size: 24px;
+        font-weight: 500;
+        letter-spacing: 0;
+        line-height: 1.15;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        vertical-align: middle;
+      }
+      main {
+        width: min(100%, 1120px);
+        margin: 0 auto;
+        padding: 48px 28px 72px;
+      }
+      .html-main {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      a { color: var(--preview-primary); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+      .preview-card {
+        border: 1px solid var(--preview-hairline);
+        border-radius: 12px;
+        background: var(--preview-card);
+        padding: 32px;
+      }
+      .markdown {
+        max-width: 880px;
+        color: var(--preview-body);
+      }
+      .markdown h1,
+      .markdown h2,
+      .markdown h3 {
+        color: var(--preview-ink);
+        font-family: var(--font-serif);
+        font-weight: 500;
+        letter-spacing: 0;
+        line-height: 1.15;
+      }
+      .markdown h1 { margin: 0 0 24px; font-size: 48px; }
+      .markdown h2 { margin: 38px 0 14px; font-size: 34px; }
+      .markdown h3 { margin: 28px 0 12px; font-size: 26px; }
+      .markdown p,
+      .markdown li { margin-bottom: 12px; }
+      .markdown ul,
+      .markdown ol { padding-left: 24px; }
+      .markdown blockquote {
+        margin: 24px 0;
+        border-left: 4px solid var(--preview-primary);
+        padding: 10px 0 10px 18px;
+        color: var(--preview-muted);
+        background: var(--preview-soft);
+      }
+      pre {
+        margin: 0;
+        overflow: auto;
+        border-radius: 12px;
+        padding: 20px;
+        background: var(--preview-dark);
+        color: var(--preview-on-dark);
+        line-height: 1.6;
+      }
+      .markdown pre { margin: 18px 0; }
+      code {
+        font-family: var(--font-mono);
+        font-size: 14px;
+      }
+      :not(pre) > code {
+        border-radius: 6px;
+        padding: 2px 6px;
+        color: var(--preview-primary-active);
+        background: var(--preview-soft);
+      }
+      .code-preview {
+        border-radius: 12px;
+        background: var(--preview-dark);
+        padding: 24px;
+      }
+      iframe {
+        width: 100%;
+        min-height: calc(100vh - 63px);
+        border: 0;
+        border-radius: 0;
+        background: white;
+      }
+    </style>
+  </head>
+  <body>
+    <header><h1>${title}</h1></header>
+    <main${kind === 'html' ? ' class="html-main"' : ''}>${body}</main>
+  </body>
+</html>`;
+}
+
+function renderPreviewBody(content: string, kind: FilePreviewKind): string {
+  if (kind === 'markdown') {
+    return `<article class="markdown preview-card">${markdown.render(content)}</article>`;
+  }
+
+  if (kind === 'html') {
+    return `<iframe sandbox="allow-scripts" srcdoc="${escapeAttribute(content)}"></iframe>`;
+  }
+
+  return `<section class="code-preview"><pre><code>${escapeHtml(content)}</code></pre></section>`;
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeAttribute(value: string): string {
+  return escapeHtml(value).replace(/\r?\n/g, '&#10;');
+}

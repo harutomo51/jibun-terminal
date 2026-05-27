@@ -1,5 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { join } from 'node:path';
+import { openFilePreview } from './filePreview/filePreview';
+import { FILE_PREVIEW_CHANNELS } from './filePreview/types';
 import { readFileTree } from './fileTree/fileTree';
 import { FILE_TREE_CHANNELS } from './fileTree/types';
 import { PtyManager } from './terminal/ptyManager';
@@ -72,6 +74,7 @@ app.on('window-all-closed', () => {
 });
 
 function registerIpcHandlers(): void {
+  ipcMain.handle(FILE_PREVIEW_CHANNELS.open, (_event, relativePath: string) => openFilePreview(ptyManager.getCurrentCwd(), relativePath));
   ipcMain.handle(FILE_TREE_CHANNELS.list, () => readFileTree(ptyManager.getCurrentCwd()));
   ipcMain.handle(TERMINAL_CHANNELS.start, () => ptyManager.start());
   ipcMain.handle(TERMINAL_CHANNELS.restart, () => ptyManager.restart());

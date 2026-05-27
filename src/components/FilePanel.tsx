@@ -1,6 +1,7 @@
 import { File, Folder, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { FileTreeNode } from '../../electron/fileTree/types';
+import { getFilePreviewBridge } from '../lib/filePreviewBridge';
 import { getFileTreeBridge } from '../lib/fileTreeBridge';
 import { getTerminalBridge } from '../lib/terminalBridge';
 
@@ -51,6 +52,28 @@ export function FilePanel(): JSX.Element {
     }
   }, []);
 
+  const openPreview = async (node: FileTreeNode) => {
+    if (node.kind !== 'file') {
+      return;
+    }
+
+    try {
+      const result = await getFilePreviewBridge().open(node.relativePath);
+      if (!result.ok) {
+        setState((current) => ({
+          ...current,
+          error: result.error ?? 'ファイルプレビューを開けませんでした。'
+        }));
+      }
+    } catch (error) {
+      console.error('Renderer file preview failed', error);
+      setState((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : 'ファイルプレビューを開けませんでした。'
+      }));
+    }
+  };
+
   useEffect(() => {
     void loadFileTree();
   }, [loadFileTree]);
@@ -80,22 +103,38 @@ export function FilePanel(): JSX.Element {
         {!state.loading && !state.error && state.nodes.length === 0 ? (
           <p className="panel-empty">表示できるファイルがありません。</p>
         ) : null}
-        {!state.loading && !state.error ? <FileTree nodes={state.nodes} /> : null}
+        {!state.loading && !state.error ? <FileTree nodes={state.nodes} onPreview={openPreview} /> : null}
       </div>
     </section>
   );
 }
 
-function FileTree({ nodes, depth = 0 }: { nodes: FileTreeNode[]; depth?: number }): JSX.Element {
+function FileTree({
+  nodes,
+  depth = 0,
+  onPreview
+}: {
+  nodes: FileTreeNode[];
+  depth?: number;
+  onPreview: (node: FileTreeNode) => void;
+}): JSX.Element {
   return (
     <ul className="file-tree">
       {nodes.map((node) => (
         <li className="file-tree__item" key={node.relativePath}>
-          <div className="file-tree__row" title={node.relativePath} style={{ paddingLeft: `${depth * 12}px` }}>
+          <button
+            className={`file-tree__row file-tree__row--${node.kind}`}
+            title={node.kind === 'file' ? `${node.relativePath} をプレビュー` : node.relativePath}
+            type="button"
+            style={{ paddingLeft: `${depth * 12}px` }}
+            onClick={() => onPreview(node)}
+          >
             {node.kind === 'directory' ? <Folder size={15} /> : <File size={15} />}
             <span>{node.name}</span>
-          </div>
-          {node.children && node.children.length > 0 ? <FileTree nodes={node.children} depth={depth + 1} /> : null}
+          </button>
+          {node.children && node.children.length > 0 ? (
+            <FileTree nodes={node.children} depth={depth + 1} onPreview={onPreview} />
+          ) : null}
         </li>
       ))}
     </ul>
