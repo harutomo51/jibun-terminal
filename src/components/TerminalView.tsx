@@ -57,7 +57,7 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
         event.preventDefault();
         bridge.input('\t').catch((inputError: unknown) => {
           console.error('Renderer tab IPC failed', inputError);
-          setError('TabキーをPTYへ送信できませんでした。');
+          setError('Tab key could not be sent to the PTY.');
         });
         return false;
       }
@@ -71,7 +71,7 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
         void bridge.resize({ cols: terminal.cols, rows: terminal.rows });
       } catch (resizeError) {
         console.error('Renderer resize failed', resizeError);
-        onLog('リサイズ処理に失敗しました。', 'error');
+        onLog('Terminal resize failed.', 'error');
       }
     };
 
@@ -80,13 +80,13 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
 
     removeDataListener = bridge.onData((data) => terminal.write(data));
     removeExitListener = bridge.onExit((payload) => {
-      onLog(`PTYが終了しました: exitCode=${payload.exitCode ?? 'null'}`);
+      onLog(`PTY exited: exitCode=${payload.exitCode ?? 'null'}`);
     });
 
-    terminal.onData((data) => {
+    const inputDisposable = terminal.onData((data) => {
       bridge.input(data).catch((inputError: unknown) => {
         console.error('Renderer input IPC failed', inputError);
-        setError('入力をPTYへ送信できませんでした。');
+        setError('Input could not be sent to the PTY.');
       });
     });
 
@@ -94,7 +94,7 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
       try {
         const result = restartToken > 0 ? await bridge.restart() : await bridge.start();
         if (!result.ok || !result.shell) {
-          const message = result.error ?? 'PowerShellの起動に失敗しました。';
+          const message = result.error ?? 'Failed to start PowerShell.';
           setError(message);
           terminal.writeln(`\r\n[fun-terminal-win11] ${message}`);
           onLog(message, 'error');
@@ -103,10 +103,10 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
 
         setError(null);
         onShellChange(result.shell.displayName);
-        onLog(`${result.shell.name} を起動しました。`);
+        onLog(`${result.shell.name} started.`);
         window.setTimeout(resizePty, 50);
       } catch (startError) {
-        const message = startError instanceof Error ? startError.message : 'renderer初期化に失敗しました。';
+        const message = startError instanceof Error ? startError.message : 'Renderer initialization failed.';
         console.error('Renderer terminal initialization failed', startError);
         setError(message);
         onLog(message, 'error');
@@ -117,6 +117,7 @@ export function TerminalView({ restartToken, onShellChange, onLog }: TerminalVie
 
     return () => {
       observer.disconnect();
+      inputDisposable.dispose();
       removeDataListener();
       removeExitListener();
       terminal.dispose();

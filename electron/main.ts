@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, type MenuItemConstructorOptions } from 'electron';
 import { join } from 'node:path';
+import { APPEARANCE_CHANNELS, type AppearanceCommand } from './appearance/types';
 import { openFilePreview } from './filePreview/filePreview';
 import { FILE_PREVIEW_CHANNELS } from './filePreview/types';
 import { readFileTree } from './fileTree/fileTree';
@@ -54,6 +55,7 @@ function createWindow(): void {
 app.whenReady().then(() => {
   registerIpcHandlers();
   createWindow();
+  setApplicationMenu();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -72,6 +74,40 @@ app.on('window-all-closed', () => {
     app.quit();
   }
 });
+
+function setApplicationMenu(): void {
+  const template: MenuItemConstructorOptions[] = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'Appearance',
+          submenu: [
+            {
+              label: 'Open Appearance Settings',
+              accelerator: 'CmdOrCtrl+,',
+              click: () => sendAppearanceCommand('open-settings')
+            },
+            {
+              label: 'Cycle Background',
+              click: () => sendAppearanceCommand('cycle-background')
+            }
+          ]
+        },
+        { type: 'separator' },
+        process.platform === 'darwin' ? { role: 'close' } : { role: 'quit' }
+      ]
+    },
+    { role: 'viewMenu' },
+    { role: 'windowMenu' }
+  ];
+
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
+function sendAppearanceCommand(command: AppearanceCommand): void {
+  mainWindow?.webContents.send(APPEARANCE_CHANNELS.onCommand, { command });
+}
 
 function registerIpcHandlers(): void {
   ipcMain.handle(FILE_PREVIEW_CHANNELS.open, (_event, relativePath: string) => openFilePreview(ptyManager.getCurrentCwd(), relativePath));

@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { AppearanceSettings } from './components/AppearanceSettings';
 import { FilePanel } from './components/FilePanel';
 import { StatusPanel } from './components/StatusPanel';
 import { TerminalView } from './components/TerminalView';
-import { TopBar } from './components/TopBar';
+import { getAppearanceBridge } from './lib/appearanceBridge';
 import { normalizeHexColor } from './lib/backgroundColor';
 import { normalizeOpacity } from './lib/opacity';
 import './styles/terminal.css';
@@ -20,9 +21,8 @@ export default function App(): JSX.Element {
   const [customBackgroundColor, setCustomBackgroundColor] = useState('#1f6feb');
   const [terminalBackgroundColor, setTerminalBackgroundColor] = useState('#05070d');
   const [terminalOpacity, setTerminalOpacity] = useState(0.78);
-  const [shellName, setShellName] = useState('未起動');
   const [logs, setLogs] = useState<AppLogEntry[]>([]);
-  const [restartToken, setRestartToken] = useState(0);
+  const [isAppearanceOpen, setAppearanceOpen] = useState(false);
 
   const addLog = useCallback((message: string, level: AppLogEntry['level'] = 'info') => {
     setLogs((current) => [
@@ -31,14 +31,16 @@ export default function App(): JSX.Element {
     ].slice(0, 8));
   }, []);
 
-  const cycleBackground = () => {
+  const ignoreShellChange = useCallback(() => undefined, []);
+
+  const cycleBackground = useCallback(() => {
     setBackgroundMode((current) => {
       if (current === 'aurora') return 'sunset';
       if (current === 'sunset') return 'image';
       if (current === 'image') return 'custom';
       return 'aurora';
     });
-  };
+  }, []);
 
   const updateCustomBackgroundColor = (value: string) => {
     setCustomBackgroundColor(normalizeHexColor(value, customBackgroundColor));
@@ -53,9 +55,26 @@ export default function App(): JSX.Element {
     setTerminalOpacity(normalizeOpacity(value));
   };
 
-  const restartTerminal = () => {
-    setRestartToken((value) => value + 1);
-  };
+  useEffect(() => {
+    try {
+      const bridge = getAppearanceBridge();
+      return bridge.onCommand((payload) => {
+        if (payload.command === 'open-settings') {
+          setAppearanceOpen(true);
+          return;
+        }
+
+        if (payload.command === 'cycle-background') {
+          cycleBackground();
+          setAppearanceOpen(true);
+        }
+      });
+    } catch (error) {
+      console.error('Failed to initialize appearance menu bridge', error);
+      addLog('Appearance menu bridge is unavailable.', 'error');
+      return undefined;
+    }
+  }, [addLog, cycleBackground]);
 
   return (
     <main
@@ -67,23 +86,22 @@ export default function App(): JSX.Element {
       } as React.CSSProperties}
     >
       <div className="app-overlay" />
-      <TopBar
-        appName="fun-terminal-win11"
-        shellName={shellName}
+      <AppearanceSettings
+        isOpen={isAppearanceOpen}
         backgroundMode={backgroundMode}
         customBackgroundColor={customBackgroundColor}
         terminalBackgroundColor={terminalBackgroundColor}
         terminalOpacity={terminalOpacity}
+        onClose={() => setAppearanceOpen(false)}
         onCycleBackground={cycleBackground}
         onCustomBackgroundColorChange={updateCustomBackgroundColor}
         onTerminalBackgroundColorChange={updateTerminalBackgroundColor}
         onTerminalOpacityChange={updateTerminalOpacity}
-        onRestart={restartTerminal}
       />
       <section className="workspace">
         <TerminalView
-          restartToken={restartToken}
-          onShellChange={setShellName}
+          restartToken={0}
+          onShellChange={ignoreShellChange}
           onLog={addLog}
         />
         <aside className="side-panel">

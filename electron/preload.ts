@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
+import { APPEARANCE_CHANNELS, type AppearanceBridgeApi, type AppearanceCommandPayload } from './appearance/types';
 import { FILE_PREVIEW_CHANNELS, type FilePreviewBridgeApi, type FilePreviewOpenResult } from './filePreview/types';
 import { FILE_TREE_CHANNELS, type FileTreeBridgeApi, type FileTreeResult } from './fileTree/types';
 import { TERMINAL_CHANNELS, type TerminalBridgeApi, type TerminalCwdChangePayload, type TerminalExitPayload, type TerminalResizePayload, type TerminalStartResult } from './terminal/types';
@@ -33,6 +34,15 @@ const filePreviewApi: FilePreviewBridgeApi = {
   open: (relativePath: string) => ipcRenderer.invoke(FILE_PREVIEW_CHANNELS.open, relativePath) as Promise<FilePreviewOpenResult>
 };
 
+const appearanceApi: AppearanceBridgeApi = {
+  onCommand: (callback: (payload: AppearanceCommandPayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: AppearanceCommandPayload) => callback(payload);
+    ipcRenderer.on(APPEARANCE_CHANNELS.onCommand, listener);
+    return () => ipcRenderer.off(APPEARANCE_CHANNELS.onCommand, listener);
+  }
+};
+
 contextBridge.exposeInMainWorld('terminalApi', terminalApi);
 contextBridge.exposeInMainWorld('fileTreeApi', fileTreeApi);
 contextBridge.exposeInMainWorld('filePreviewApi', filePreviewApi);
+contextBridge.exposeInMainWorld('appearanceApi', appearanceApi);
