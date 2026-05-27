@@ -7,6 +7,7 @@
 - Electron main process: owns the PTY process and IPC handlers.
 - Preload script: exposes a minimal `window.terminalApi` bridge.
 - React renderer: renders xterm.js, forwards user input, and displays status/errors.
+- App and terminal background customization stay in renderer state and CSS custom properties.
 
 ## Process Flow
 

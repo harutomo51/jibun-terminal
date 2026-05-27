@@ -22,6 +22,8 @@ button {
 
 .app-shell {
   --terminal-opacity: 0.78;
+  --custom-background-color: #1f6feb;
+  --terminal-background-color: #05070d;
   position: relative;
   min-height: 100vh;
   padding: 14px;
@@ -49,6 +51,13 @@ button {
     linear-gradient(135deg, #18202b, #31263d 52%, #12343b);
   background-size: cover;
   background-position: center;
+}
+
+.app-shell--custom {
+  background:
+    radial-gradient(circle at 16% 16%, color-mix(in srgb, var(--custom-background-color) 58%, white 12%), transparent 32%),
+    radial-gradient(circle at 78% 12%, color-mix(in srgb, var(--custom-background-color) 46%, #ffcc66 18%), transparent 34%),
+    linear-gradient(135deg, color-mix(in srgb, var(--custom-background-color) 62%, #05070d 38%), #10131a 58%, color-mix(in srgb, var(--custom-background-color) 28%, #02040a 72%));
 }
 
 .app-overlay {
@@ -91,12 +100,14 @@ button {
 
 .top-bar__actions {
   display: flex;
+  align-items: center;
   gap: 8px;
 }
 
-.top-bar__actions button {
+.top-bar__actions button,
+.color-picker,
+.opacity-slider {
   display: grid;
-  width: 36px;
   height: 36px;
   place-items: center;
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -106,8 +117,60 @@ button {
   cursor: pointer;
 }
 
-.top-bar__actions button:hover {
+.top-bar__actions button,
+.color-picker {
+  width: 36px;
+}
+
+.top-bar__actions button:hover,
+.color-picker:hover,
+.opacity-slider:hover {
   background: rgba(35, 44, 66, 0.9);
+}
+
+.color-picker {
+  position: relative;
+}
+
+.color-picker input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.opacity-slider {
+  grid-template-columns: 18px 96px 40px;
+  gap: 8px;
+  width: 174px;
+  padding: 0 10px;
+  cursor: default;
+}
+
+.opacity-slider input {
+  width: 96px;
+  accent-color: #8bb7ff;
+  cursor: pointer;
+}
+
+.opacity-slider span {
+  color: #dbe5ff;
+  font-size: 12px;
+  text-align: right;
+}
+
+@media (max-width: 760px) {
+  .opacity-slider {
+    grid-template-columns: 18px 76px;
+    width: 122px;
+  }
+
+  .opacity-slider span {
+    display: none;
+  }
 }
 
 .workspace {
