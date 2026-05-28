@@ -44,6 +44,56 @@
     0 18px 48px rgba(0, 0, 0, 0.24);
 }
 
+.terminal-frame--tool-claude {
+  border-color: rgba(217, 119, 87, 0.92);
+}
+
+.terminal-frame--tool-codex {
+  border-color: rgba(87, 190, 255, 0.92);
+}
+
+.terminal-frame--tool-copilot {
+  border-color: rgba(79, 220, 139, 0.92);
+}
+
+.terminal-frame--tool-gemini {
+  border-color: rgba(177, 133, 255, 0.92);
+}
+
+.terminal-frame--tool-agy {
+  border-color: rgba(255, 214, 102, 0.92);
+}
+
+.terminal-frame--active.terminal-frame--tool-claude {
+  box-shadow:
+    0 0 0 1px rgba(217, 119, 87, 0.38),
+    0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.terminal-frame--active.terminal-frame--tool-codex {
+  box-shadow:
+    0 0 0 1px rgba(87, 190, 255, 0.38),
+    0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.terminal-frame--active.terminal-frame--tool-copilot {
+  box-shadow:
+    0 0 0 1px rgba(79, 220, 139, 0.38),
+    0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.terminal-frame--active.terminal-frame--tool-gemini {
+  box-shadow:
+    0 0 0 1px rgba(177, 133, 255, 0.38),
+    0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
+.terminal-frame--active.terminal-frame--tool-agy {
+  box-shadow:
+    0 0 0 1px rgba(255, 214, 102, 0.4),
+    0 18px 48px rgba(0, 0, 0, 0.24);
+}
+
 .terminal-frame::before {
   position: absolute;
   inset: 0;
@@ -110,6 +160,32 @@
 
 .terminal-frame--active .terminal-pane-label {
   color: #dce8ff;
+}
+
+.terminal-pane-tool {
+  margin-left: 8px;
+  color: #f9d79b;
+  text-transform: uppercase;
+}
+
+.terminal-frame--tool-codex .terminal-pane-tool {
+  color: #8fd9ff;
+}
+
+.terminal-frame--tool-copilot .terminal-pane-tool {
+  color: #92f0b5;
+}
+
+.terminal-frame--tool-claude .terminal-pane-tool {
+  color: #ffb199;
+}
+
+.terminal-frame--tool-gemini .terminal-pane-tool {
+  color: #d9c2ff;
+}
+
+.terminal-frame--tool-agy .terminal-pane-tool {
+  color: #ffe08a;
 }
 
 .terminal-pane-toolbar button {

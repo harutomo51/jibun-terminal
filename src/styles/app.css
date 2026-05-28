@@ -196,6 +196,31 @@ button {
   height: calc(100vh - 28px);
 }
 
+.workspace--side-panel-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.side-panel-toggle {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  z-index: 5;
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  color: #f8fbff;
+  background: rgba(10, 14, 24, 0.72);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+
+.side-panel-toggle:hover {
+  background: rgba(35, 44, 66, 0.9);
+}
+
 .side-panel {
   min-width: 0;
   min-height: 0;

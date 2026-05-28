@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { AppearanceSettings } from './components/AppearanceSettings';
 import { FilePanel } from './components/FilePanel';
 import { TerminalView } from './components/TerminalView';
@@ -14,6 +15,7 @@ import {
   type TerminalLayoutNode,
   type TerminalSplitDirection
 } from './lib/terminalLayout';
+import type { TerminalTool } from './lib/terminalTool';
 import './styles/terminal.css';
 
 type BackgroundMode = 'aurora' | 'sunset' | 'image' | 'custom';
@@ -23,6 +25,7 @@ export type AppLogLevel = 'info' | 'error';
 interface TerminalPane {
   id: string;
   shellName: string;
+  tool: TerminalTool;
 }
 
 export default function App(): JSX.Element {
@@ -31,7 +34,8 @@ export default function App(): JSX.Element {
   const [terminalBackgroundColor, setTerminalBackgroundColor] = useState('#05070d');
   const [terminalOpacity, setTerminalOpacity] = useState(0.78);
   const [isAppearanceOpen, setAppearanceOpen] = useState(false);
-  const [panes, setPanes] = useState<TerminalPane[]>([{ id: 'pane-1', shellName: 'Not started' }]);
+  const [isSidePanelVisible, setSidePanelVisible] = useState(true);
+  const [panes, setPanes] = useState<TerminalPane[]>([{ id: 'pane-1', shellName: 'Not started', tool: 'none' }]);
   const [activePaneId, setActivePaneId] = useState('pane-1');
   const [terminalLayout, setTerminalLayout] = useState<TerminalLayoutNode>(() => createInitialTerminalLayout('pane-1'));
 
@@ -48,12 +52,16 @@ export default function App(): JSX.Element {
     setPanes((current) => current.map((pane) => (pane.id === paneId ? { ...pane, shellName } : pane)));
   }, []);
 
+  const updatePaneTool = useCallback((paneId: string, tool: TerminalTool) => {
+    setPanes((current) => current.map((pane) => (pane.id === paneId ? { ...pane, tool } : pane)));
+  }, []);
+
   const splitPane = useCallback((paneId: string, direction: TerminalSplitDirection) => {
     const newPaneId = `pane-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
     setTerminalLayout((current) => splitTerminalPane(current, paneId, newPaneId, direction));
     setPanes((current) => {
       const index = current.findIndex((pane) => pane.id === paneId);
-      const newPane = { id: newPaneId, shellName: 'Not started' };
+      const newPane = { id: newPaneId, shellName: 'Not started', tool: 'none' as TerminalTool };
       if (index === -1) {
         return [...current, newPane];
       }
@@ -106,17 +114,19 @@ export default function App(): JSX.Element {
         key={node.paneId}
         paneId={node.paneId}
         title={`Pane ${paneIndex + 1} - ${pane?.shellName ?? 'Not started'}`}
+        tool={pane?.tool ?? 'none'}
         restartToken={0}
         isActive={node.paneId === activePaneId}
         canClose={panes.length > 1}
         onActivate={setActivePaneId}
         onClose={closePane}
         onShellChange={updatePaneShell}
+        onToolChange={updatePaneTool}
         onLog={addLog}
         onSplit={splitPane}
       />
     );
-  }, [activePaneId, addLog, closePane, panes, splitPane, updatePaneShell]);
+  }, [activePaneId, addLog, closePane, panes, splitPane, updatePaneShell, updatePaneTool]);
 
   const cycleBackground = useCallback(() => {
     setBackgroundMode((current) => {
@@ -185,13 +195,23 @@ export default function App(): JSX.Element {
         onTerminalBackgroundColorChange={updateTerminalBackgroundColor}
         onTerminalOpacityChange={updateTerminalOpacity}
       />
-      <section className="workspace">
+      <button
+        type="button"
+        className="side-panel-toggle"
+        title={isSidePanelVisible ? 'Hide side panel' : 'Show side panel'}
+        onClick={() => setSidePanelVisible((current) => !current)}
+      >
+        {isSidePanelVisible ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
+      </button>
+      <section className={`workspace${isSidePanelVisible ? '' : ' workspace--side-panel-hidden'}`}>
         <div className="terminal-layout-root">
           {renderTerminalLayout(terminalLayout, paneOrder)}
         </div>
-        <aside className="side-panel">
-          <FilePanel activePaneId={activePaneId} />
-        </aside>
+        {isSidePanelVisible ? (
+          <aside className="side-panel">
+            <FilePanel activePaneId={activePaneId} />
+          </aside>
+        ) : null}
       </section>
     </main>
   );

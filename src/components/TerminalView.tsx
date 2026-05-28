@@ -7,16 +7,19 @@ import type { AppLogLevel } from '../App';
 import { getTerminalBridge } from '../lib/terminalBridge';
 import { shouldForwardTabToPty } from '../lib/terminalKeys';
 import type { TerminalSplitDirection } from '../lib/terminalLayout';
+import { detectTerminalTool, detectTerminalToolFromOutput, terminalOutputHasPromptMarker, type TerminalTool } from '../lib/terminalTool';
 
 interface TerminalViewProps {
   paneId: string;
   title: string;
+  tool: TerminalTool;
   restartToken: number;
   isActive: boolean;
   canClose: boolean;
   onActivate: (paneId: string) => void;
   onClose: (paneId: string) => void;
   onShellChange: (paneId: string, shellName: string) => void;
+  onToolChange: (paneId: string, tool: TerminalTool) => void;
   onLog: (message: string, level?: AppLogLevel) => void;
   onSplit: (paneId: string, direction: TerminalSplitDirection) => void;
 }
@@ -24,12 +27,14 @@ interface TerminalViewProps {
 export function TerminalView({
   paneId,
   title,
+  tool,
   restartToken,
   isActive,
   canClose,
   onActivate,
   onClose,
   onShellChange,
+  onToolChange,
   onLog,
   onSplit
 }: TerminalViewProps): JSX.Element {
@@ -45,6 +50,7 @@ export function TerminalView({
 
     let removeDataListener: () => void = () => undefined;
     let removeExitListener: () => void = () => undefined;
+    let commandBuffer = '';
 
     const terminal = new Terminal({
       cursorBlink: true,
@@ -100,6 +106,15 @@ export function TerminalView({
     removeDataListener = bridge.onData((payload) => {
       if (payload.paneId === paneId) {
         terminal.write(payload.data);
+        const outputTool = detectTerminalToolFromOutput(payload.data);
+        if (outputTool !== 'none') {
+          onToolChange(paneId, outputTool);
+          return;
+        }
+
+        if (terminalOutputHasPromptMarker(payload.data)) {
+          onToolChange(paneId, 'none');
+        }
       }
     });
     removeExitListener = bridge.onExit((payload) => {
@@ -109,6 +124,12 @@ export function TerminalView({
     });
 
     const inputDisposable = terminal.onData((data) => {
+      commandBuffer += data;
+      if (data.includes('\r')) {
+        onToolChange(paneId, detectTerminalTool(commandBuffer.replace(/\r/g, '').replace(/\n/g, '')));
+        commandBuffer = '';
+      }
+
       bridge.input({ paneId, data }).catch((inputError: unknown) => {
         console.error('Renderer input IPC failed', inputError);
         setError('Input could not be sent to the PTY.');
@@ -149,7 +170,7 @@ export function TerminalView({
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [paneId, restartToken, onLog, onShellChange]);
+  }, [paneId, restartToken, onLog, onShellChange, onToolChange]);
 
   useEffect(() => {
     if (isActive) {
@@ -159,10 +180,13 @@ export function TerminalView({
 
   return (
     <section
-      className={`terminal-frame${isActive ? ' terminal-frame--active' : ''}`}
+      className={`terminal-frame terminal-frame--tool-${tool}${isActive ? ' terminal-frame--active' : ''}`}
       onMouseDown={() => onActivate(paneId)}
     >
-      <div className="terminal-pane-label">{title}</div>
+      <div className="terminal-pane-label">
+        {title}
+        {tool !== 'none' ? <span className="terminal-pane-tool">{tool}</span> : null}
+      </div>
       <div className="terminal-pane-toolbar">
         <button type="button" title="Split vertically" onClick={() => onSplit(paneId, 'vertical')}>
           <SquareSplitHorizontal size={15} />
