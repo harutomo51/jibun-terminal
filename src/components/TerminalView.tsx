@@ -3,7 +3,7 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { Terminal } from '@xterm/xterm';
 import { SquareSplitHorizontal, SquareSplitVertical, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import type { AppLogEntry } from '../App';
+import type { AppLogLevel } from '../App';
 import { getTerminalBridge } from '../lib/terminalBridge';
 import { shouldForwardTabToPty } from '../lib/terminalKeys';
 import type { TerminalSplitDirection } from '../lib/terminalLayout';
@@ -17,7 +17,7 @@ interface TerminalViewProps {
   onActivate: (paneId: string) => void;
   onClose: (paneId: string) => void;
   onShellChange: (paneId: string, shellName: string) => void;
-  onLog: (message: string, level?: AppLogEntry['level']) => void;
+  onLog: (message: string, level?: AppLogLevel) => void;
   onSplit: (paneId: string, direction: TerminalSplitDirection) => void;
 }
 

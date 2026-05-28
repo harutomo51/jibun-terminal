@@ -197,17 +197,13 @@ button {
 }
 
 .side-panel {
-  display: grid;
-  grid-template-rows: minmax(0, 1fr) minmax(120px, 0.38fr);
-  gap: 12px;
   min-width: 0;
   min-height: 0;
 }
 
-.file-panel,
-.status-panel {
+.file-panel {
   min-width: 0;
-  min-height: 0;
+  height: 100%;
   padding: 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
@@ -224,8 +220,7 @@ button {
   margin-bottom: 10px;
 }
 
-.panel-header h2,
-.status-panel h2 {
+.panel-header h2 {
   margin: 0;
   font-size: 14px;
 }
@@ -253,8 +248,7 @@ button {
   cursor: pointer;
 }
 
-.file-panel__body,
-.status-panel__items {
+.file-panel__body {
   height: calc(100% - 42px);
   overflow: auto;
 }
@@ -301,7 +295,6 @@ button {
   cursor: pointer;
 }
 
-.status-panel__item,
 .panel-empty,
 .panel-error {
   margin: 0;
@@ -309,15 +302,6 @@ button {
   font-size: 12px;
   line-height: 1.45;
   word-break: break-word;
-}
-
-.status-panel__item span {
-  display: block;
-  color: #8793ad;
-}
-
-.status-panel__item--error {
-  color: #ffb8bf;
 }
 
 .panel-error {
@@ -328,10 +312,5 @@ button {
   .workspace {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 1fr) 210px;
-  }
-
-  .side-panel {
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr;
   }
 }

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { AppearanceSettings } from './components/AppearanceSettings';
 import { FilePanel } from './components/FilePanel';
-import { StatusPanel } from './components/StatusPanel';
 import { TerminalView } from './components/TerminalView';
 import { getAppearanceBridge } from './lib/appearanceBridge';
 import { normalizeHexColor } from './lib/backgroundColor';
@@ -19,11 +18,7 @@ import './styles/terminal.css';
 
 type BackgroundMode = 'aurora' | 'sunset' | 'image' | 'custom';
 
-export interface AppLogEntry {
-  timestamp: string;
-  message: string;
-  level: 'info' | 'error';
-}
+export type AppLogLevel = 'info' | 'error';
 
 interface TerminalPane {
   id: string;
@@ -35,17 +30,18 @@ export default function App(): JSX.Element {
   const [customBackgroundColor, setCustomBackgroundColor] = useState('#1f6feb');
   const [terminalBackgroundColor, setTerminalBackgroundColor] = useState('#05070d');
   const [terminalOpacity, setTerminalOpacity] = useState(0.78);
-  const [logs, setLogs] = useState<AppLogEntry[]>([]);
   const [isAppearanceOpen, setAppearanceOpen] = useState(false);
   const [panes, setPanes] = useState<TerminalPane[]>([{ id: 'pane-1', shellName: 'Not started' }]);
   const [activePaneId, setActivePaneId] = useState('pane-1');
   const [terminalLayout, setTerminalLayout] = useState<TerminalLayoutNode>(() => createInitialTerminalLayout('pane-1'));
 
-  const addLog = useCallback((message: string, level: AppLogEntry['level'] = 'info') => {
-    setLogs((current) => [
-      { timestamp: new Date().toLocaleTimeString(), message, level },
-      ...current
-    ].slice(0, 8));
+  const addLog = useCallback((message: string, level: AppLogLevel = 'info') => {
+    if (level === 'error') {
+      console.error(message);
+      return;
+    }
+
+    console.info(message);
   }, []);
 
   const updatePaneShell = useCallback((paneId: string, shellName: string) => {
@@ -195,7 +191,6 @@ export default function App(): JSX.Element {
         </div>
         <aside className="side-panel">
           <FilePanel activePaneId={activePaneId} />
-          <StatusPanel logs={logs} />
         </aside>
       </section>
     </main>
