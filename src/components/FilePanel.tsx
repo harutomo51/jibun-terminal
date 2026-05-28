@@ -12,11 +12,19 @@ import {
   Settings,
   Zap
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FileTreeNode } from '../../electron/fileTree/types';
+import type { GitCommit } from '../../electron/gitLog/types';
 import { getFileIconKind, type FileIconKind } from '../lib/fileIcon';
 import { getFilePreviewBridge } from '../lib/filePreviewBridge';
 import { getFileTreeBridge } from '../lib/fileTreeBridge';
+import {
+  computeGitGraphLayout,
+  type GitGraphEdge,
+  type GitGraphLayout,
+  type GitGraphNode
+} from '../lib/gitGraphLayout';
+import { getGitLogBridge } from '../lib/gitLogBridge';
 import { getTerminalBridge } from '../lib/terminalBridge';
 
 interface FilePanelState {
@@ -30,12 +38,28 @@ interface FilePanelProps {
   activePaneId: string;
 }
 
+type SidePanelTab = 'files' | 'git';
+
+interface GitPanelState {
+  rootPath: string;
+  commits: GitCommit[];
+  error: string | null;
+  loading: boolean;
+}
+
 export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
+  const [activeTab, setActiveTab] = useState<SidePanelTab>('files');
   const [state, setState] = useState<FilePanelState>({
     rootPath: '',
     nodes: [],
     error: null,
     loading: true
+  });
+  const [gitState, setGitState] = useState<GitPanelState>({
+    rootPath: '',
+    commits: [],
+    error: null,
+    loading: false
   });
 
   const loadFileTree = useCallback(async () => {
@@ -70,6 +94,38 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
     }
   }, [activePaneId]);
 
+  const loadGitLog = useCallback(async () => {
+    setGitState((current) => ({ ...current, loading: true, error: null }));
+
+    try {
+      const result = await getGitLogBridge().list(activePaneId);
+      if (!result.ok) {
+        setGitState({
+          rootPath: result.rootPath ?? '',
+          commits: [],
+          error: result.error ?? 'Git log could not be loaded.',
+          loading: false
+        });
+        return;
+      }
+
+      setGitState({
+        rootPath: result.rootPath ?? '',
+        commits: result.commits ?? [],
+        error: null,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Renderer Git log loading failed', error);
+      setGitState({
+        rootPath: '',
+        commits: [],
+        error: error instanceof Error ? error.message : 'Git log could not be loaded.',
+        loading: false
+      });
+    }
+  }, [activePaneId]);
+
   const openPreview = async (node: FileTreeNode) => {
     if (node.kind !== 'file') {
       return;
@@ -97,17 +153,48 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
   }, [loadFileTree]);
 
   useEffect(() => {
+    if (activeTab === 'git') {
+      void loadGitLog();
+    }
+  }, [activeTab, loadGitLog]);
+
+  useEffect(() => {
     const removeCwdListener = getTerminalBridge().onCwdChange((payload) => {
       if (payload.paneId === activePaneId) {
         void loadFileTree();
+        if (activeTab === 'git') {
+          void loadGitLog();
+        }
       }
     });
 
     return removeCwdListener;
-  }, [activePaneId, loadFileTree]);
+  }, [activePaneId, activeTab, loadFileTree, loadGitLog]);
 
   return (
     <section className="file-panel" aria-label="current directory files">
+      <div className="side-panel-tabs" role="tablist" aria-label="side panel views">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'files'}
+          className={activeTab === 'files' ? 'side-panel-tabs__tab side-panel-tabs__tab--active' : 'side-panel-tabs__tab'}
+          onClick={() => setActiveTab('files')}
+        >
+          Files
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'git'}
+          className={activeTab === 'git' ? 'side-panel-tabs__tab side-panel-tabs__tab--active' : 'side-panel-tabs__tab'}
+          onClick={() => setActiveTab('git')}
+        >
+          Git
+        </button>
+      </div>
+      {activeTab === 'files' ? (
+        <>
       <div className="panel-header">
         <div>
           <h2>Files</h2>
@@ -125,8 +212,187 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
         ) : null}
         {!state.loading && !state.error ? <FileTree nodes={state.nodes} onPreview={openPreview} /> : null}
       </div>
+        </>
+      ) : (
+        <GitGraphPanel state={gitState} onRefresh={() => void loadGitLog()} />
+      )}
     </section>
   );
+}
+
+const GIT_GRAPH_ROW_HEIGHT = 26;
+const GIT_GRAPH_LANE_WIDTH = 16;
+const GIT_GRAPH_PADDING_X = 10;
+const GIT_GRAPH_NODE_RADIUS = 4.5;
+const GIT_GRAPH_LANE_COLOR_COUNT = 8;
+
+function GitGraphPanel({ state, onRefresh }: { state: GitPanelState; onRefresh: () => void }): JSX.Element {
+  const layout = useMemo(() => computeGitGraphLayout(state.commits), [state.commits]);
+  const hasCommits = !state.loading && !state.error && layout.nodes.length > 0;
+
+  return (
+    <>
+      <div className="panel-header">
+        <div>
+          <h2>Git Graph</h2>
+          <p title={state.rootPath}>{state.rootPath || 'No repository selected'}</p>
+        </div>
+        <button type="button" title="Refresh Git graph" onClick={onRefresh}>
+          <RefreshCw size={16} />
+        </button>
+      </div>
+      <div className="git-panel__body">
+        {state.loading ? <p className="panel-empty">Loading Git log...</p> : null}
+        {state.error ? <p className="panel-error">{state.error}</p> : null}
+        {!state.loading && !state.error && layout.nodes.length === 0 ? (
+          <p className="panel-empty">No commits to display.</p>
+        ) : null}
+        {hasCommits ? <GitGraphView layout={layout} /> : null}
+      </div>
+    </>
+  );
+}
+
+function GitGraphView({ layout }: { layout: GitGraphLayout }): JSX.Element {
+  const laneCount = Math.max(layout.laneCount, 1);
+  const canvasWidth = GIT_GRAPH_PADDING_X * 2 + laneCount * GIT_GRAPH_LANE_WIDTH;
+  const canvasHeight = layout.nodes.length * GIT_GRAPH_ROW_HEIGHT;
+
+  return (
+    <div
+      className="git-graph"
+      style={{
+        ['--git-row-height' as string]: `${GIT_GRAPH_ROW_HEIGHT}px`,
+        ['--git-canvas-width' as string]: `${canvasWidth}px`
+      }}
+    >
+      <svg
+        className="git-graph__canvas"
+        width={canvasWidth}
+        height={canvasHeight}
+        viewBox={`0 0 ${canvasWidth} ${canvasHeight}`}
+        focusable="false"
+        aria-hidden="true"
+      >
+        <g className="git-graph__edges">
+          {layout.edges.map((edge, index) => (
+            <GitGraphEdgePath key={`edge-${index}`} edge={edge} />
+          ))}
+        </g>
+        <g className="git-graph__nodes">
+          {layout.nodes.map((node) => (
+            <GitGraphNodeMark key={node.hash} node={node} />
+          ))}
+        </g>
+      </svg>
+      <ol className="git-graph__rows">
+        {layout.nodes.map((node) => (
+          <li key={node.hash} className="git-graph__row" title={`${node.hash}  ${node.subject}`}>
+            {node.decorations.length > 0 ? (
+              <span className="git-graph__decorations">
+                {node.decorations.map((decoration) => (
+                  <span className={getDecorationClassName(decoration)} key={decoration}>
+                    {decoration}
+                  </span>
+                ))}
+              </span>
+            ) : null}
+            <span className="git-graph__subject">{node.subject}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function laneCenterX(lane: number): number {
+  return GIT_GRAPH_PADDING_X + lane * GIT_GRAPH_LANE_WIDTH + GIT_GRAPH_LANE_WIDTH / 2;
+}
+
+function rowCenterY(row: number): number {
+  return row * GIT_GRAPH_ROW_HEIGHT + GIT_GRAPH_ROW_HEIGHT / 2;
+}
+
+function buildEdgePath(edge: GitGraphEdge): string {
+  const x1 = laneCenterX(edge.fromLane);
+  const y1 = rowCenterY(edge.fromRow);
+  const x2 = laneCenterX(edge.toLane);
+  const y2 = rowCenterY(edge.toRow);
+
+  if (x1 === x2) {
+    return `M ${x1} ${y1} L ${x2} ${y2}`;
+  }
+
+  const rowHeight = GIT_GRAPH_ROW_HEIGHT;
+
+  if (edge.kind === 'merge-parent') {
+    const curveEndY = Math.min(y1 + rowHeight, y2);
+    const controlY = (y1 + curveEndY) / 2;
+    if (curveEndY >= y2) {
+      return `M ${x1} ${y1} C ${x1} ${controlY}, ${x2} ${controlY}, ${x2} ${y2}`;
+    }
+    return `M ${x1} ${y1} C ${x1} ${controlY}, ${x2} ${controlY}, ${x2} ${curveEndY} L ${x2} ${y2}`;
+  }
+
+  const curveStartY = Math.max(y2 - rowHeight, y1);
+  const controlY = (curveStartY + y2) / 2;
+  if (curveStartY <= y1) {
+    return `M ${x1} ${y1} C ${x1} ${controlY}, ${x2} ${controlY}, ${x2} ${y2}`;
+  }
+  return `M ${x1} ${y1} L ${x1} ${curveStartY} C ${x1} ${controlY}, ${x2} ${controlY}, ${x2} ${y2}`;
+}
+
+function GitGraphEdgePath({ edge }: { edge: GitGraphEdge }): JSX.Element {
+  const color = `var(--git-lane-${edge.colorLane % GIT_GRAPH_LANE_COLOR_COUNT})`;
+  return <path className="git-graph__edge" d={buildEdgePath(edge)} stroke={color} />;
+}
+
+function GitGraphNodeMark({ node }: { node: GitGraphNode }): JSX.Element {
+  const cx = laneCenterX(node.lane);
+  const cy = rowCenterY(node.row);
+  const color = `var(--git-lane-${node.lane % GIT_GRAPH_LANE_COLOR_COUNT})`;
+
+  if (node.isMerge) {
+    const outerRadius = GIT_GRAPH_NODE_RADIUS + 1.6;
+    const markLength = outerRadius - 1.6;
+    return (
+      <g>
+        <circle className="git-graph__node git-graph__node--merge" cx={cx} cy={cy} r={outerRadius} stroke={color} />
+        <line
+          className="git-graph__merge-mark"
+          x1={cx - markLength}
+          y1={cy}
+          x2={cx + markLength}
+          y2={cy}
+          stroke={color}
+        />
+        <line
+          className="git-graph__merge-mark"
+          x1={cx}
+          y1={cy - markLength}
+          x2={cx}
+          y2={cy + markLength}
+          stroke={color}
+        />
+      </g>
+    );
+  }
+
+  return <circle className="git-graph__node" cx={cx} cy={cy} r={GIT_GRAPH_NODE_RADIUS} stroke={color} />;
+}
+
+function getDecorationClassName(decoration: string): string {
+  const baseClassName = 'git-graph__badge';
+  if (decoration === 'HEAD' || decoration.startsWith('HEAD ->')) {
+    return `${baseClassName} ${baseClassName}--head`;
+  }
+  if (decoration.startsWith('tag:')) {
+    return `${baseClassName} ${baseClassName}--tag`;
+  }
+  if (decoration.startsWith('origin/') || decoration.startsWith('refs/remotes/')) {
+    return `${baseClassName} ${baseClassName}--remote`;
+  }
+  return `${baseClassName} ${baseClassName}--branch`;
 }
 
 function FileTree({

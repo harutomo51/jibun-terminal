@@ -26,8 +26,8 @@ export class PtyManager {
   private readonly events = new EventEmitter();
   private readonly cwd: string;
 
-  constructor(cwd = resolve(process.cwd())) {
-    this.cwd = cwd || homedir();
+  constructor(cwd = homedir()) {
+    this.cwd = resolve(cwd || homedir());
   }
 
   onData(listener: (payload: TerminalDataPayload) => void): () => void {
@@ -53,7 +53,7 @@ export class PtyManager {
     return this.panes.get(paneId)?.currentCwd ?? this.cwd;
   }
 
-  async start(paneId: string): Promise<TerminalStartResult> {
+  async start(paneId: string, cwd?: string): Promise<TerminalStartResult> {
     const existingPane = this.panes.get(paneId);
     if (existingPane) {
       return { ok: true, shell: existingPane.shell, cwd: existingPane.currentCwd };
@@ -66,18 +66,19 @@ export class PtyManager {
 
     try {
       const pty = await this.loadPty();
+      const initialCwd = cwd ? resolve(cwd) : this.cwd;
       const ptyProcess = pty.spawn(shell.name, ['-NoLogo', '-NoExit', '-Command', createPowerShellPromptScript()], {
         name: 'xterm-256color',
         cols: 100,
         rows: 30,
-        cwd: this.cwd,
+        cwd: initialCwd,
         env: process.env
       });
 
       const pane: PaneProcess = {
         ptyProcess,
         shell,
-        currentCwd: this.cwd
+        currentCwd: initialCwd
       };
       this.panes.set(paneId, pane);
 

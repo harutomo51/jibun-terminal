@@ -190,14 +190,60 @@ button {
 }
 
 .workspace {
+  --side-panel-width: 300px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 6px var(--side-panel-width);
+  gap: 0;
   height: calc(100vh - 28px);
 }
 
 .workspace--side-panel-hidden {
   grid-template-columns: minmax(0, 1fr);
+}
+
+.workspace--resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.workspace--resizing .terminal-layout-root,
+.workspace--resizing .side-panel {
+  pointer-events: none;
+}
+
+.side-panel-resizer {
+  position: relative;
+  width: 6px;
+  cursor: col-resize;
+  background: transparent;
+  touch-action: none;
+}
+
+.side-panel-resizer::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  bottom: 14px;
+  left: 50%;
+  width: 2px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.06);
+  transform: translateX(-50%);
+  transition: background 120ms ease;
+}
+
+.side-panel-resizer:hover::before,
+.side-panel-resizer:focus-visible::before,
+.side-panel-resizer--active::before {
+  background: rgba(120, 168, 255, 0.55);
+}
+
+.side-panel-resizer:focus-visible {
+  outline: none;
+}
+
+.side-panel-resizer:focus-visible::before {
+  box-shadow: 0 0 0 2px rgba(120, 168, 255, 0.28);
 }
 
 .side-panel-toggle {
@@ -237,6 +283,34 @@ button {
   overflow: hidden;
 }
 
+.side-panel-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(5, 8, 14, 0.68);
+}
+
+.side-panel-tabs__tab {
+  min-width: 0;
+  min-height: 28px;
+  border: 0;
+  border-radius: 6px;
+  color: #93a0bb;
+  font-size: 12px;
+  font-weight: 700;
+  background: transparent;
+  cursor: pointer;
+}
+
+.side-panel-tabs__tab--active {
+  color: #f8fbff;
+  background: rgba(85, 120, 184, 0.32);
+}
+
 .panel-header {
   display: flex;
   align-items: center;
@@ -274,7 +348,12 @@ button {
 }
 
 .file-panel__body {
-  height: calc(100% - 42px);
+  height: calc(100% - 83px);
+  overflow: auto;
+}
+
+.git-panel__body {
+  height: calc(100% - 83px);
   overflow: auto;
 }
 
@@ -379,9 +458,148 @@ button {
   color: #ffb8bf;
 }
 
+.git-graph {
+  --git-lane-0: #ffb000;
+  --git-lane-1: #27d17f;
+  --git-lane-2: #30c8ff;
+  --git-lane-3: #d746ff;
+  --git-lane-4: #ff5252;
+  --git-lane-5: #f4e66a;
+  --git-lane-6: #64d7c8;
+  --git-lane-7: #9aa7ff;
+  --git-row-height: 26px;
+  --git-canvas-width: 32px;
+  display: grid;
+  grid-template-columns: var(--git-canvas-width) minmax(0, 1fr);
+  align-items: start;
+  min-width: max-content;
+  font-family: "Inter", "BIZ UDGothic", "Segoe UI", system-ui, sans-serif;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.git-graph__canvas {
+  display: block;
+  flex-shrink: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.git-graph__edge {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.9;
+  vector-effect: non-scaling-stroke;
+}
+
+.git-graph__node {
+  fill: #0a0f1a;
+  stroke-width: 2.1;
+  vector-effect: non-scaling-stroke;
+}
+
+.git-graph__node--merge {
+  fill: #0a0f1a;
+}
+
+.git-graph__merge-mark {
+  stroke-linecap: round;
+  stroke-width: 1.6;
+  vector-effect: non-scaling-stroke;
+}
+
+.git-graph__rows {
+  display: grid;
+  grid-auto-rows: var(--git-row-height);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.git-graph__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px 0 6px;
+  min-width: 0;
+  color: #e7edff;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.git-graph__decorations {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.git-graph__badge {
+  display: inline-flex;
+  align-items: center;
+  max-width: 200px;
+  height: 18px;
+  padding: 0 6px;
+  overflow: hidden;
+  border-radius: 9px;
+  color: #071019;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #d6e34c;
+}
+
+.git-graph__badge--head {
+  color: #1a1003;
+  background: linear-gradient(135deg, #ffd166, #ffb000);
+  box-shadow: 0 0 0 1px rgba(255, 209, 102, 0.4) inset;
+}
+
+.git-graph__badge--remote {
+  color: #e9fff8;
+  background: linear-gradient(135deg, #1aa183, #157057);
+}
+
+.git-graph__badge--tag {
+  color: #0d1320;
+  background: linear-gradient(135deg, #cfe9ff, #7ac1ff);
+}
+
+.git-graph__badge--branch {
+  color: #0a1428;
+  background: linear-gradient(135deg, #e1ea84, #b9c84c);
+}
+
+.git-graph__subject {
+  color: #f3f6ff;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 @media (max-width: 900px) {
   .workspace {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 1fr) 210px;
+    grid-template-rows: minmax(0, 1fr) 6px 210px;
+  }
+
+  .side-panel-resizer {
+    width: auto;
+    height: 6px;
+    cursor: row-resize;
+  }
+
+  .side-panel-resizer::before {
+    top: 50%;
+    bottom: auto;
+    left: 14px;
+    right: 14px;
+    width: auto;
+    height: 2px;
+    transform: translateY(-50%);
   }
 }

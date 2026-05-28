@@ -12,6 +12,7 @@ import { detectTerminalTool, detectTerminalToolFromOutput, terminalOutputHasProm
 interface TerminalViewProps {
   paneId: string;
   title: string;
+  initialCwd?: string;
   tool: TerminalTool;
   restartToken: number;
   isActive: boolean;
@@ -28,6 +29,7 @@ interface TerminalViewProps {
 export function TerminalView({
   paneId,
   title,
+  initialCwd,
   tool,
   restartToken,
   isActive,
@@ -43,6 +45,7 @@ export function TerminalView({
   const containerRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitAddonRef = useRef<FitAddon | null>(null);
+  const initialCwdRef = useRef(initialCwd);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -140,7 +143,7 @@ export function TerminalView({
 
     const start = async () => {
       try {
-        const result = restartToken > 0 ? await bridge.restart(paneId) : await bridge.start(paneId);
+        const result = restartToken > 0 ? await bridge.restart(paneId) : await bridge.start(paneId, initialCwdRef.current);
         if (!result.ok || !result.shell) {
           const message = result.error ?? 'Failed to start PowerShell.';
           setError(message);

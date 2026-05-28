@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { APPEARANCE_CHANNELS, type AppearanceBridgeApi, type AppearanceCommandPayload } from './appearance/types';
 import { FILE_PREVIEW_CHANNELS, type FilePreviewBridgeApi, type FilePreviewOpenResult } from './filePreview/types';
 import { FILE_TREE_CHANNELS, type FileTreeBridgeApi, type FileTreeResult } from './fileTree/types';
+import { GIT_LOG_CHANNELS, type GitLogBridgeApi, type GitLogResult } from './gitLog/types';
 import {
   TERMINAL_CHANNELS,
   type TerminalBridgeApi,
@@ -14,7 +15,7 @@ import {
 } from './terminal/types';
 
 const terminalApi: TerminalBridgeApi = {
-  start: (paneId: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.start, { paneId }) as Promise<TerminalStartResult>,
+  start: (paneId: string, cwd?: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.start, { paneId, cwd }) as Promise<TerminalStartResult>,
   input: (payload: TerminalInputPayload) => ipcRenderer.invoke(TERMINAL_CHANNELS.input, payload) as Promise<void>,
   resize: (payload: TerminalResizePayload) => ipcRenderer.invoke(TERMINAL_CHANNELS.resize, payload) as Promise<void>,
   restart: (paneId: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.restart, { paneId }) as Promise<TerminalStartResult>,
@@ -44,6 +45,10 @@ const filePreviewApi: FilePreviewBridgeApi = {
   open: (relativePath: string, paneId?: string) => ipcRenderer.invoke(FILE_PREVIEW_CHANNELS.open, relativePath, paneId) as Promise<FilePreviewOpenResult>
 };
 
+const gitLogApi: GitLogBridgeApi = {
+  list: (paneId?: string) => ipcRenderer.invoke(GIT_LOG_CHANNELS.list, paneId) as Promise<GitLogResult>
+};
+
 const appearanceApi: AppearanceBridgeApi = {
   onCommand: (callback: (payload: AppearanceCommandPayload) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: AppearanceCommandPayload) => callback(payload);
@@ -55,4 +60,5 @@ const appearanceApi: AppearanceBridgeApi = {
 contextBridge.exposeInMainWorld('terminalApi', terminalApi);
 contextBridge.exposeInMainWorld('fileTreeApi', fileTreeApi);
 contextBridge.exposeInMainWorld('filePreviewApi', filePreviewApi);
+contextBridge.exposeInMainWorld('gitLogApi', gitLogApi);
 contextBridge.exposeInMainWorld('appearanceApi', appearanceApi);

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { PanelRightClose, PanelRightOpen } from 'lucide-react';
 import { AppearanceSettings } from './components/AppearanceSettings';
 import { FilePanel } from './components/FilePanel';
 import { TerminalView } from './components/TerminalView';
+import { clampSidePanelWidth, loadSidePanelWidth, saveSidePanelWidth } from './lib/sidePanelLayout';
 import { getAppearanceBridge } from './lib/appearanceBridge';
 import { normalizeHexColor } from './lib/backgroundColor';
 import { normalizeOpacity } from './lib/opacity';
@@ -36,6 +37,9 @@ export default function App(): JSX.Element {
   const [terminalOpacity, setTerminalOpacity] = useState(0.78);
   const [isAppearanceOpen, setAppearanceOpen] = useState(false);
   const [isSidePanelVisible, setSidePanelVisible] = useState(true);
+  const [sidePanelWidth, setSidePanelWidth] = useState<number>(() => loadSidePanelWidth());
+  const [isResizingSidePanel, setResizingSidePanel] = useState(false);
+  const workspaceRef = useRef<HTMLElement | null>(null);
   const [panes, setPanes] = useState<TerminalPane[]>([{ id: 'pane-1', shellName: 'Not started', cwd: '', tool: 'none' }]);
   const [activePaneId, setActivePaneId] = useState('pane-1');
   const [terminalLayout, setTerminalLayout] = useState<TerminalLayoutNode>(() => createInitialTerminalLayout('pane-1'));
@@ -66,7 +70,8 @@ export default function App(): JSX.Element {
     setTerminalLayout((current) => splitTerminalPane(current, paneId, newPaneId, direction));
     setPanes((current) => {
       const index = current.findIndex((pane) => pane.id === paneId);
-      const newPane = { id: newPaneId, shellName: 'Not started', cwd: '', tool: 'none' as TerminalTool };
+      const sourceCwd = index === -1 ? '' : current[index].cwd;
+      const newPane = { id: newPaneId, shellName: 'Not started', cwd: sourceCwd, tool: 'none' as TerminalTool };
       if (index === -1) {
         return [...current, newPane];
       }
@@ -119,6 +124,7 @@ export default function App(): JSX.Element {
         key={node.paneId}
         paneId={node.paneId}
         title={`Pane ${paneIndex + 1} - ${pane?.shellName ?? 'Not started'}`}
+        initialCwd={pane?.cwd}
         tool={pane?.tool ?? 'none'}
         restartToken={0}
         isActive={node.paneId === activePaneId}
@@ -189,6 +195,80 @@ export default function App(): JSX.Element {
     document.title = activePane?.cwd || 'fun-terminal-win11';
   }, [activePaneId, panes]);
 
+  useEffect(() => {
+    const handleViewportResize = () => {
+      setSidePanelWidth((current) => clampSidePanelWidth(current, window.innerWidth));
+    };
+
+    window.addEventListener('resize', handleViewportResize);
+    return () => window.removeEventListener('resize', handleViewportResize);
+  }, []);
+
+  const handleSidePanelResizeStart = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) {
+      return;
+    }
+
+    const workspace = workspaceRef.current;
+    if (!workspace) {
+      return;
+    }
+
+    event.preventDefault();
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+    setResizingSidePanel(true);
+
+    const workspaceRect = workspace.getBoundingClientRect();
+
+    const handleMove = (pointerEvent: PointerEvent) => {
+      const nextWidth = workspaceRect.right - pointerEvent.clientX;
+      setSidePanelWidth(clampSidePanelWidth(nextWidth, window.innerWidth));
+    };
+
+    const handleUp = (pointerEvent: PointerEvent) => {
+      if (pointerEvent.pointerId !== event.pointerId) {
+        return;
+      }
+
+      target.releasePointerCapture(event.pointerId);
+      target.removeEventListener('pointermove', handleMove);
+      target.removeEventListener('pointerup', handleUp);
+      target.removeEventListener('pointercancel', handleUp);
+      setResizingSidePanel(false);
+      setSidePanelWidth((current) => {
+        saveSidePanelWidth(current);
+        return current;
+      });
+    };
+
+    target.addEventListener('pointermove', handleMove);
+    target.addEventListener('pointerup', handleUp);
+    target.addEventListener('pointercancel', handleUp);
+  }, []);
+
+  const handleSidePanelResizeKey = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = event.shiftKey ? 32 : 8;
+    if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      setSidePanelWidth((current) => {
+        const next = clampSidePanelWidth(current + step, window.innerWidth);
+        saveSidePanelWidth(next);
+        return next;
+      });
+      return;
+    }
+
+    if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      setSidePanelWidth((current) => {
+        const next = clampSidePanelWidth(current - step, window.innerWidth);
+        saveSidePanelWidth(next);
+        return next;
+      });
+    }
+  }, []);
+
   const paneOrder = collectTerminalPaneIds(terminalLayout);
 
   return (
@@ -221,14 +301,30 @@ export default function App(): JSX.Element {
       >
         {isSidePanelVisible ? <PanelRightClose size={17} /> : <PanelRightOpen size={17} />}
       </button>
-      <section className={`workspace${isSidePanelVisible ? '' : ' workspace--side-panel-hidden'}`}>
+      <section
+        ref={workspaceRef}
+        className={`workspace${isSidePanelVisible ? '' : ' workspace--side-panel-hidden'}${isResizingSidePanel ? ' workspace--resizing' : ''}`}
+        style={isSidePanelVisible ? ({ '--side-panel-width': `${sidePanelWidth}px` } as React.CSSProperties) : undefined}
+      >
         <div className="terminal-layout-root">
           {renderTerminalLayout(terminalLayout, paneOrder)}
         </div>
         {isSidePanelVisible ? (
-          <aside className="side-panel">
-            <FilePanel activePaneId={activePaneId} />
-          </aside>
+          <>
+            <div
+              role="separator"
+              aria-label="Resize side panel"
+              aria-orientation="vertical"
+              aria-valuenow={sidePanelWidth}
+              tabIndex={0}
+              className={`side-panel-resizer${isResizingSidePanel ? ' side-panel-resizer--active' : ''}`}
+              onPointerDown={handleSidePanelResizeStart}
+              onKeyDown={handleSidePanelResizeKey}
+            />
+            <aside className="side-panel">
+              <FilePanel activePaneId={activePaneId} />
+            </aside>
+          </>
         ) : null}
       </section>
     </main>

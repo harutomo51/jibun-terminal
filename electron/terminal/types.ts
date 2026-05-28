@@ -27,6 +27,10 @@ export interface TerminalPanePayload {
   paneId: string;
 }
 
+export interface TerminalStartPayload extends TerminalPanePayload {
+  cwd?: string;
+}
+
 export interface TerminalInputPayload extends TerminalPanePayload {
   data: string;
 }
@@ -54,7 +58,7 @@ export interface TerminalDataPayload {
 }
 
 export interface TerminalBridgeApi {
-  start: (paneId: string) => Promise<TerminalStartResult>;
+  start: (paneId: string, cwd?: string) => Promise<TerminalStartResult>;
   input: (payload: TerminalInputPayload) => Promise<void>;
   resize: (payload: TerminalResizePayload) => Promise<void>;
   restart: (paneId: string) => Promise<TerminalStartResult>;

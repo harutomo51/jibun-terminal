@@ -5,8 +5,10 @@ import { openFilePreview } from './filePreview/filePreview';
 import { FILE_PREVIEW_CHANNELS } from './filePreview/types';
 import { readFileTree } from './fileTree/fileTree';
 import { FILE_TREE_CHANNELS } from './fileTree/types';
+import { readGitLog } from './gitLog/gitLog';
+import { GIT_LOG_CHANNELS } from './gitLog/types';
 import { PtyManager } from './terminal/ptyManager';
-import { TERMINAL_CHANNELS, type TerminalInputPayload, type TerminalPanePayload, type TerminalResizePayload } from './terminal/types';
+import { TERMINAL_CHANNELS, type TerminalInputPayload, type TerminalPanePayload, type TerminalResizePayload, type TerminalStartPayload } from './terminal/types';
 
 let mainWindow: BrowserWindow | null = null;
 const ptyManager = new PtyManager();
@@ -125,7 +127,8 @@ function sendAppearanceCommand(command: AppearanceCommand): void {
 function registerIpcHandlers(): void {
   ipcMain.handle(FILE_PREVIEW_CHANNELS.open, (_event, relativePath: string, paneId?: string) => openFilePreview(ptyManager.getCurrentCwd(paneId), relativePath));
   ipcMain.handle(FILE_TREE_CHANNELS.list, (_event, paneId?: string) => readFileTree(ptyManager.getCurrentCwd(paneId)));
-  ipcMain.handle(TERMINAL_CHANNELS.start, (_event, payload: TerminalPanePayload) => ptyManager.start(payload.paneId));
+  ipcMain.handle(GIT_LOG_CHANNELS.list, (_event, paneId?: string) => readGitLog(ptyManager.getCurrentCwd(paneId)));
+  ipcMain.handle(TERMINAL_CHANNELS.start, (_event, payload: TerminalStartPayload) => ptyManager.start(payload.paneId, payload.cwd));
   ipcMain.handle(TERMINAL_CHANNELS.restart, (_event, payload: TerminalPanePayload) => ptyManager.restart(payload.paneId));
   ipcMain.handle(TERMINAL_CHANNELS.close, (_event, payload: TerminalPanePayload) => {
     ptyManager.close(payload.paneId);
