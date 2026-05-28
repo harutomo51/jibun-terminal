@@ -1,6 +1,20 @@
-import { File, Folder, RefreshCw } from 'lucide-react';
+import {
+  Braces,
+  Code2,
+  File,
+  FileCode2,
+  FileImage,
+  FileJson2,
+  FileText,
+  Folder,
+  Hash,
+  RefreshCw,
+  Settings,
+  Zap
+} from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import type { FileTreeNode } from '../../electron/fileTree/types';
+import { getFileIconKind, type FileIconKind } from '../lib/fileIcon';
 import { getFilePreviewBridge } from '../lib/filePreviewBridge';
 import { getFileTreeBridge } from '../lib/fileTreeBridge';
 import { getTerminalBridge } from '../lib/terminalBridge';
@@ -135,7 +149,7 @@ function FileTree({
             style={{ paddingLeft: `${depth * 12}px` }}
             onClick={() => onPreview(node)}
           >
-            {node.kind === 'directory' ? <Folder size={15} /> : <File size={15} />}
+            <FileTreeIcon iconKind={getFileIconKind(node.name, node.kind)} />
             <span>{node.name}</span>
           </button>
           {node.children && node.children.length > 0 ? (
@@ -145,4 +159,25 @@ function FileTree({
       ))}
     </ul>
   );
+}
+
+function FileTreeIcon({ iconKind }: { iconKind: FileIconKind }): JSX.Element {
+  const className = `file-tree__icon file-tree__icon--${iconKind}`;
+  const size = 15;
+
+  if (iconKind === 'folder') return <Folder className={className} size={size} />;
+  if (iconKind === 'typescript') return <Zap className={className} size={size} />;
+  if (iconKind === 'javascript') return <Zap className={className} size={size} />;
+  if (iconKind === 'json') return <Braces className={className} size={size} />;
+  if (iconKind === 'markdown') return <FileText className={className} size={size} />;
+  if (iconKind === 'html') return <Code2 className={className} size={size} />;
+  if (iconKind === 'css') return <Hash className={className} size={size} />;
+  if (iconKind === 'powershell') return <FileCode2 className={className} size={size} />;
+  if (iconKind === 'config') return <Settings className={className} size={size} />;
+  if (iconKind === 'image') return <FileImage className={className} size={size} />;
+  if (iconKind === 'text') return <FileText className={className} size={size} />;
+  if (iconKind === 'code') return <FileCode2 className={className} size={size} />;
+  if (iconKind === 'file') return <File className={className} size={size} />;
+
+  return <FileJson2 className={className} size={size} />;
 }

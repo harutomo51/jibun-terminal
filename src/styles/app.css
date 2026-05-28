@@ -283,8 +283,54 @@ button {
   white-space: nowrap;
 }
 
-.file-tree__row svg {
+.file-tree__icon {
   color: #94b7ff;
+}
+
+.file-tree__icon--folder {
+  color: #ffd166;
+  fill: rgba(255, 209, 102, 0.18);
+}
+
+.file-tree__icon--typescript {
+  color: #4ea1ff;
+}
+
+.file-tree__icon--javascript {
+  color: #ffcf5a;
+}
+
+.file-tree__icon--json {
+  color: #d6f36f;
+}
+
+.file-tree__icon--markdown,
+.file-tree__icon--text {
+  color: #d7dce8;
+}
+
+.file-tree__icon--html {
+  color: #ff7a59;
+}
+
+.file-tree__icon--css {
+  color: #b96cff;
+}
+
+.file-tree__icon--powershell {
+  color: #74b9ff;
+}
+
+.file-tree__icon--config {
+  color: #ff9f43;
+}
+
+.file-tree__icon--image {
+  color: #5eead4;
+}
+
+.file-tree__icon--code {
+  color: #ff9f43;
 }
 
 .file-tree__row:hover {
