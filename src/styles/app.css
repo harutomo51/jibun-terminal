@@ -285,7 +285,7 @@ button {
 
 .side-panel-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, 1fr);
   gap: 4px;
   margin-bottom: 10px;
   padding: 3px;
@@ -355,6 +355,98 @@ button {
 .git-panel__body {
   height: calc(100% - 83px);
   overflow: auto;
+}
+
+.worktree-panel__body {
+  height: calc(100% - 83px);
+  overflow: auto;
+}
+
+.worktree-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.worktree-list__item {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  background: rgba(5, 8, 14, 0.55);
+}
+
+.worktree-list__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.worktree-list__ref-icon {
+  flex: 0 0 auto;
+  color: #8fa6d6;
+}
+
+.worktree-list__ref {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: #f3f6fd;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worktree-list__hash {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(143, 166, 214, 0.18);
+  color: #c4d2ed;
+  font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+}
+
+.worktree-list__path {
+  overflow: hidden;
+  color: #8793ad;
+  font-family: "JetBrains Mono", "Cascadia Code", "Consolas", monospace;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worktree-list__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.worktree-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.worktree-badge--locked {
+  background: rgba(255, 178, 92, 0.18);
+  color: #ffcf99;
+}
+
+.worktree-badge--prunable {
+  background: rgba(255, 110, 120, 0.18);
+  color: #ffb3b9;
 }
 
 .file-tree {

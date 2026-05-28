@@ -7,6 +7,8 @@ import { readFileTree } from './fileTree/fileTree';
 import { FILE_TREE_CHANNELS } from './fileTree/types';
 import { readGitLog } from './gitLog/gitLog';
 import { GIT_LOG_CHANNELS } from './gitLog/types';
+import { readGitWorktrees } from './gitWorktree/gitWorktree';
+import { GIT_WORKTREE_CHANNELS } from './gitWorktree/types';
 import { PtyManager } from './terminal/ptyManager';
 import { TERMINAL_CHANNELS, type TerminalInputPayload, type TerminalPanePayload, type TerminalResizePayload, type TerminalStartPayload } from './terminal/types';
 
@@ -128,6 +130,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(FILE_PREVIEW_CHANNELS.open, (_event, relativePath: string, paneId?: string) => openFilePreview(ptyManager.getCurrentCwd(paneId), relativePath));
   ipcMain.handle(FILE_TREE_CHANNELS.list, (_event, paneId?: string) => readFileTree(ptyManager.getCurrentCwd(paneId)));
   ipcMain.handle(GIT_LOG_CHANNELS.list, (_event, paneId?: string) => readGitLog(ptyManager.getCurrentCwd(paneId)));
+  ipcMain.handle(GIT_WORKTREE_CHANNELS.list, (_event, paneId?: string) => readGitWorktrees(ptyManager.getCurrentCwd(paneId)));
   ipcMain.handle(TERMINAL_CHANNELS.start, (_event, payload: TerminalStartPayload) => ptyManager.start(payload.paneId, payload.cwd));
   ipcMain.handle(TERMINAL_CHANNELS.restart, (_event, payload: TerminalPanePayload) => ptyManager.restart(payload.paneId));
   ipcMain.handle(TERMINAL_CHANNELS.close, (_event, payload: TerminalPanePayload) => {

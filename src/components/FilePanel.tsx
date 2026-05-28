@@ -7,14 +7,20 @@ import {
   FileJson2,
   FileText,
   Folder,
+  FolderGit2,
+  GitBranch,
   Hash,
+  Lock,
   RefreshCw,
   Settings,
+  TriangleAlert,
+  Unlink,
   Zap
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { FileTreeNode } from '../../electron/fileTree/types';
 import type { GitCommit } from '../../electron/gitLog/types';
+import type { GitWorktree } from '../../electron/gitWorktree/types';
 import { getFileIconKind, type FileIconKind } from '../lib/fileIcon';
 import { getFilePreviewBridge } from '../lib/filePreviewBridge';
 import { getFileTreeBridge } from '../lib/fileTreeBridge';
@@ -25,6 +31,7 @@ import {
   type GitGraphNode
 } from '../lib/gitGraphLayout';
 import { getGitLogBridge } from '../lib/gitLogBridge';
+import { getGitWorktreeBridge } from '../lib/gitWorktreeBridge';
 import { getTerminalBridge } from '../lib/terminalBridge';
 
 interface FilePanelState {
@@ -38,11 +45,18 @@ interface FilePanelProps {
   activePaneId: string;
 }
 
-type SidePanelTab = 'files' | 'git';
+type SidePanelTab = 'files' | 'git' | 'worktree';
 
 interface GitPanelState {
   rootPath: string;
   commits: GitCommit[];
+  error: string | null;
+  loading: boolean;
+}
+
+interface GitWorktreePanelState {
+  rootPath: string;
+  worktrees: GitWorktree[];
   error: string | null;
   loading: boolean;
 }
@@ -58,6 +72,12 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
   const [gitState, setGitState] = useState<GitPanelState>({
     rootPath: '',
     commits: [],
+    error: null,
+    loading: false
+  });
+  const [worktreeState, setWorktreeState] = useState<GitWorktreePanelState>({
+    rootPath: '',
+    worktrees: [],
     error: null,
     loading: false
   });
@@ -126,6 +146,38 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
     }
   }, [activePaneId]);
 
+  const loadGitWorktrees = useCallback(async () => {
+    setWorktreeState((current) => ({ ...current, loading: true, error: null }));
+
+    try {
+      const result = await getGitWorktreeBridge().list(activePaneId);
+      if (!result.ok) {
+        setWorktreeState({
+          rootPath: result.rootPath ?? '',
+          worktrees: [],
+          error: result.error ?? 'Git worktrees could not be loaded.',
+          loading: false
+        });
+        return;
+      }
+
+      setWorktreeState({
+        rootPath: result.rootPath ?? '',
+        worktrees: result.worktrees ?? [],
+        error: null,
+        loading: false
+      });
+    } catch (error) {
+      console.error('Renderer Git worktree loading failed', error);
+      setWorktreeState({
+        rootPath: '',
+        worktrees: [],
+        error: error instanceof Error ? error.message : 'Git worktrees could not be loaded.',
+        loading: false
+      });
+    }
+  }, [activePaneId]);
+
   const openPreview = async (node: FileTreeNode) => {
     if (node.kind !== 'file') {
       return;
@@ -156,7 +208,10 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
     if (activeTab === 'git') {
       void loadGitLog();
     }
-  }, [activeTab, loadGitLog]);
+    if (activeTab === 'worktree') {
+      void loadGitWorktrees();
+    }
+  }, [activeTab, loadGitLog, loadGitWorktrees]);
 
   useEffect(() => {
     const removeCwdListener = getTerminalBridge().onCwdChange((payload) => {
@@ -165,11 +220,14 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
         if (activeTab === 'git') {
           void loadGitLog();
         }
+        if (activeTab === 'worktree') {
+          void loadGitWorktrees();
+        }
       }
     });
 
     return removeCwdListener;
-  }, [activePaneId, activeTab, loadFileTree, loadGitLog]);
+  }, [activePaneId, activeTab, loadFileTree, loadGitLog, loadGitWorktrees]);
 
   return (
     <section className="file-panel" aria-label="current directory files">
@@ -192,6 +250,15 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
         >
           Git
         </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'worktree'}
+          className={activeTab === 'worktree' ? 'side-panel-tabs__tab side-panel-tabs__tab--active' : 'side-panel-tabs__tab'}
+          onClick={() => setActiveTab('worktree')}
+        >
+          Worktree
+        </button>
       </div>
       {activeTab === 'files' ? (
         <>
@@ -213,8 +280,10 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
         {!state.loading && !state.error ? <FileTree nodes={state.nodes} onPreview={openPreview} /> : null}
       </div>
         </>
-      ) : (
+      ) : activeTab === 'git' ? (
         <GitGraphPanel state={gitState} onRefresh={() => void loadGitLog()} />
+      ) : (
+        <GitWorktreePanel state={worktreeState} onRefresh={() => void loadGitWorktrees()} />
       )}
     </section>
   );
@@ -250,6 +319,84 @@ function GitGraphPanel({ state, onRefresh }: { state: GitPanelState; onRefresh: 
         {hasCommits ? <GitGraphView layout={layout} /> : null}
       </div>
     </>
+  );
+}
+
+function GitWorktreePanel({
+  state,
+  onRefresh
+}: {
+  state: GitWorktreePanelState;
+  onRefresh: () => void;
+}): JSX.Element {
+  const hasWorktrees = !state.loading && !state.error && state.worktrees.length > 0;
+
+  return (
+    <>
+      <div className="panel-header">
+        <div>
+          <h2>Worktrees</h2>
+          <p title={state.rootPath}>{state.rootPath || 'No repository selected'}</p>
+        </div>
+        <button type="button" title="Refresh worktree list" onClick={onRefresh}>
+          <RefreshCw size={16} />
+        </button>
+      </div>
+      <div className="worktree-panel__body">
+        {state.loading ? <p className="panel-empty">Loading worktrees...</p> : null}
+        {state.error ? <p className="panel-error">{state.error}</p> : null}
+        {!state.loading && !state.error && state.worktrees.length === 0 ? (
+          <p className="panel-empty">No worktrees registered.</p>
+        ) : null}
+        {hasWorktrees ? (
+          <ol className="worktree-list">
+            {state.worktrees.map((worktree) => (
+              <GitWorktreeRow key={worktree.path} worktree={worktree} />
+            ))}
+          </ol>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function GitWorktreeRow({ worktree }: { worktree: GitWorktree }): JSX.Element {
+  const refLabel = worktree.isBare
+    ? 'bare'
+    : worktree.isDetached
+      ? worktree.head
+        ? `detached @ ${worktree.head.slice(0, 7)}`
+        : 'detached'
+      : worktree.branch ?? 'unknown';
+  const RefIcon = worktree.isBare ? FolderGit2 : worktree.isDetached ? Unlink : GitBranch;
+
+  return (
+    <li className="worktree-list__item">
+      <div className="worktree-list__header">
+        <RefIcon className="worktree-list__ref-icon" size={14} />
+        <span className="worktree-list__ref" title={refLabel}>{refLabel}</span>
+        {worktree.head && !worktree.isBare ? (
+          <span className="worktree-list__hash" title={worktree.head}>{worktree.head.slice(0, 7)}</span>
+        ) : null}
+      </div>
+      <div className="worktree-list__path" title={worktree.path}>{worktree.path}</div>
+      {worktree.isLocked || worktree.isPrunable ? (
+        <div className="worktree-list__flags">
+          {worktree.isLocked ? (
+            <span className="worktree-badge worktree-badge--locked" title={worktree.lockReason ?? 'locked'}>
+              <Lock size={11} />
+              {worktree.lockReason ? `locked: ${worktree.lockReason}` : 'locked'}
+            </span>
+          ) : null}
+          {worktree.isPrunable ? (
+            <span className="worktree-badge worktree-badge--prunable" title={worktree.prunableReason ?? 'prunable'}>
+              <TriangleAlert size={11} />
+              {worktree.prunableReason ? `prunable: ${worktree.prunableReason}` : 'prunable'}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+    </li>
   );
 }
 

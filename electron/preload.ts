@@ -3,6 +3,7 @@ import { APPEARANCE_CHANNELS, type AppearanceBridgeApi, type AppearanceCommandPa
 import { FILE_PREVIEW_CHANNELS, type FilePreviewBridgeApi, type FilePreviewOpenResult } from './filePreview/types';
 import { FILE_TREE_CHANNELS, type FileTreeBridgeApi, type FileTreeResult } from './fileTree/types';
 import { GIT_LOG_CHANNELS, type GitLogBridgeApi, type GitLogResult } from './gitLog/types';
+import { GIT_WORKTREE_CHANNELS, type GitWorktreeBridgeApi, type GitWorktreeResult } from './gitWorktree/types';
 import {
   TERMINAL_CHANNELS,
   type TerminalBridgeApi,
@@ -49,6 +50,10 @@ const gitLogApi: GitLogBridgeApi = {
   list: (paneId?: string) => ipcRenderer.invoke(GIT_LOG_CHANNELS.list, paneId) as Promise<GitLogResult>
 };
 
+const gitWorktreeApi: GitWorktreeBridgeApi = {
+  list: (paneId?: string) => ipcRenderer.invoke(GIT_WORKTREE_CHANNELS.list, paneId) as Promise<GitWorktreeResult>
+};
+
 const appearanceApi: AppearanceBridgeApi = {
   onCommand: (callback: (payload: AppearanceCommandPayload) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: AppearanceCommandPayload) => callback(payload);
@@ -61,4 +66,5 @@ contextBridge.exposeInMainWorld('terminalApi', terminalApi);
 contextBridge.exposeInMainWorld('fileTreeApi', fileTreeApi);
 contextBridge.exposeInMainWorld('filePreviewApi', filePreviewApi);
 contextBridge.exposeInMainWorld('gitLogApi', gitLogApi);
+contextBridge.exposeInMainWorld('gitWorktreeApi', gitWorktreeApi);
 contextBridge.exposeInMainWorld('appearanceApi', appearanceApi);
