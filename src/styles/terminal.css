@@ -1,5 +1,32 @@
+.terminal-layout-root,
+.terminal-split {
+  min-width: 0;
+  min-height: 0;
+}
+
+.terminal-layout-root {
+  height: 100%;
+}
+
+.terminal-split {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  gap: 8px;
+}
+
+.terminal-split--vertical {
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr);
+}
+
+.terminal-split--horizontal {
+  grid-template-rows: minmax(120px, 1fr) minmax(120px, 1fr);
+}
+
 .terminal-frame {
   position: relative;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -8,6 +35,13 @@
   background: transparent;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.24);
   backdrop-filter: blur(14px);
+}
+
+.terminal-frame--active {
+  border-color: rgba(139, 183, 255, 0.9);
+  box-shadow:
+    0 0 0 1px rgba(139, 183, 255, 0.28),
+    0 18px 48px rgba(0, 0, 0, 0.24);
 }
 
 .terminal-frame::before {
@@ -24,7 +58,7 @@
   z-index: 1;
   width: 100%;
   height: 100%;
-  padding: 12px;
+  padding: 34px 12px 12px;
 }
 
 .terminal-host .xterm {
@@ -48,4 +82,53 @@
   color: #ffecef;
   font-size: 13px;
   line-height: 1.4;
+}
+
+.terminal-pane-toolbar {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  z-index: 3;
+  display: flex;
+  gap: 5px;
+}
+
+.terminal-pane-label {
+  position: absolute;
+  top: 9px;
+  left: 12px;
+  z-index: 3;
+  max-width: calc(100% - 120px);
+  overflow: hidden;
+  color: #aab8d8;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.terminal-frame--active .terminal-pane-label {
+  color: #dce8ff;
+}
+
+.terminal-pane-toolbar button {
+  display: grid;
+  width: 26px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 6px;
+  color: #e6edff;
+  background: rgba(10, 14, 24, 0.72);
+  cursor: pointer;
+}
+
+.terminal-pane-toolbar button:hover:not(:disabled) {
+  background: rgba(45, 58, 84, 0.92);
+}
+
+.terminal-pane-toolbar button:disabled {
+  color: rgba(230, 237, 255, 0.3);
+  cursor: not-allowed;
 }

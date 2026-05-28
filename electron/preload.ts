@@ -2,15 +2,25 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { APPEARANCE_CHANNELS, type AppearanceBridgeApi, type AppearanceCommandPayload } from './appearance/types';
 import { FILE_PREVIEW_CHANNELS, type FilePreviewBridgeApi, type FilePreviewOpenResult } from './filePreview/types';
 import { FILE_TREE_CHANNELS, type FileTreeBridgeApi, type FileTreeResult } from './fileTree/types';
-import { TERMINAL_CHANNELS, type TerminalBridgeApi, type TerminalCwdChangePayload, type TerminalExitPayload, type TerminalResizePayload, type TerminalStartResult } from './terminal/types';
+import {
+  TERMINAL_CHANNELS,
+  type TerminalBridgeApi,
+  type TerminalCwdChangePayload,
+  type TerminalDataPayload,
+  type TerminalExitPayload,
+  type TerminalInputPayload,
+  type TerminalResizePayload,
+  type TerminalStartResult
+} from './terminal/types';
 
 const terminalApi: TerminalBridgeApi = {
-  start: () => ipcRenderer.invoke(TERMINAL_CHANNELS.start) as Promise<TerminalStartResult>,
-  input: (data: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.input, data) as Promise<void>,
+  start: (paneId: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.start, { paneId }) as Promise<TerminalStartResult>,
+  input: (payload: TerminalInputPayload) => ipcRenderer.invoke(TERMINAL_CHANNELS.input, payload) as Promise<void>,
   resize: (payload: TerminalResizePayload) => ipcRenderer.invoke(TERMINAL_CHANNELS.resize, payload) as Promise<void>,
-  restart: () => ipcRenderer.invoke(TERMINAL_CHANNELS.restart) as Promise<TerminalStartResult>,
-  onData: (callback: (data: string) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: string) => callback(data);
+  restart: (paneId: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.restart, { paneId }) as Promise<TerminalStartResult>,
+  close: (paneId: string) => ipcRenderer.invoke(TERMINAL_CHANNELS.close, { paneId }) as Promise<void>,
+  onData: (callback: (payload: TerminalDataPayload) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: TerminalDataPayload) => callback(payload);
     ipcRenderer.on(TERMINAL_CHANNELS.onData, listener);
     return () => ipcRenderer.off(TERMINAL_CHANNELS.onData, listener);
   },
@@ -27,11 +37,11 @@ const terminalApi: TerminalBridgeApi = {
 };
 
 const fileTreeApi: FileTreeBridgeApi = {
-  list: () => ipcRenderer.invoke(FILE_TREE_CHANNELS.list) as Promise<FileTreeResult>
+  list: (paneId?: string) => ipcRenderer.invoke(FILE_TREE_CHANNELS.list, paneId) as Promise<FileTreeResult>
 };
 
 const filePreviewApi: FilePreviewBridgeApi = {
-  open: (relativePath: string) => ipcRenderer.invoke(FILE_PREVIEW_CHANNELS.open, relativePath) as Promise<FilePreviewOpenResult>
+  open: (relativePath: string, paneId?: string) => ipcRenderer.invoke(FILE_PREVIEW_CHANNELS.open, relativePath, paneId) as Promise<FilePreviewOpenResult>
 };
 
 const appearanceApi: AppearanceBridgeApi = {

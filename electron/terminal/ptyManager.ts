@@ -4,23 +4,33 @@ import { resolve } from 'node:path';
 import type { IPty } from 'node-pty';
 import { createPowerShellPromptScript, extractOsc7Cwd } from './cwdTracker';
 import { resolvePowerShellCandidate } from './shellResolver';
-import type { ShellInfo, TerminalCwdChangePayload, TerminalExitPayload, TerminalResizePayload, TerminalStartResult } from './types';
+import type {
+  ShellInfo,
+  TerminalCwdChangePayload,
+  TerminalDataPayload,
+  TerminalExitPayload,
+  TerminalResizePayload,
+  TerminalStartResult
+} from './types';
 
 type PtyModule = typeof import('node-pty');
 
+interface PaneProcess {
+  ptyProcess: IPty;
+  shell: ShellInfo;
+  currentCwd: string;
+}
+
 export class PtyManager {
-  private ptyProcess: IPty | null = null;
-  private shell: ShellInfo | null = null;
+  private readonly panes = new Map<string, PaneProcess>();
   private readonly events = new EventEmitter();
   private readonly cwd: string;
-  private currentCwd: string;
 
   constructor(cwd = resolve(process.cwd())) {
     this.cwd = cwd || homedir();
-    this.currentCwd = this.cwd;
   }
 
-  onData(listener: (data: string) => void): () => void {
+  onData(listener: (payload: TerminalDataPayload) => void): () => void {
     this.events.on('data', listener);
     return () => this.events.off('data', listener);
   }
@@ -35,25 +45,28 @@ export class PtyManager {
     return () => this.events.off('cwdChange', listener);
   }
 
-  getCurrentCwd(): string {
-    return this.currentCwd;
+  getCurrentCwd(paneId?: string): string {
+    if (!paneId) {
+      return this.cwd;
+    }
+
+    return this.panes.get(paneId)?.currentCwd ?? this.cwd;
   }
 
-  async start(): Promise<TerminalStartResult> {
-    if (this.ptyProcess && this.shell) {
-      return { ok: true, shell: this.shell };
+  async start(paneId: string): Promise<TerminalStartResult> {
+    const existingPane = this.panes.get(paneId);
+    if (existingPane) {
+      return { ok: true, shell: existingPane.shell };
     }
 
     const shell = resolvePowerShellCandidate();
     if (!shell) {
-      return { ok: false, error: 'pwsh.exe または powershell.exe が見つかりませんでした。' };
+      return { ok: false, error: 'pwsh.exe or powershell.exe was not found.' };
     }
 
     try {
       const pty = await this.loadPty();
-      this.shell = shell;
-      this.currentCwd = this.cwd;
-      this.ptyProcess = pty.spawn(shell.name, ['-NoLogo', '-NoExit', '-Command', createPowerShellPromptScript()], {
+      const ptyProcess = pty.spawn(shell.name, ['-NoLogo', '-NoExit', '-Command', createPowerShellPromptScript()], {
         name: 'xterm-256color',
         cols: 100,
         rows: 30,
@@ -61,65 +74,81 @@ export class PtyManager {
         env: process.env
       });
 
-      this.ptyProcess.onData((data) => {
-        this.updateCurrentCwd(data);
-        this.events.emit('data', data);
+      const pane: PaneProcess = {
+        ptyProcess,
+        shell,
+        currentCwd: this.cwd
+      };
+      this.panes.set(paneId, pane);
+
+      ptyProcess.onData((data) => {
+        this.updateCurrentCwd(paneId, data);
+        this.events.emit('data', { paneId, data });
       });
-      this.ptyProcess.onExit((event) => {
+      ptyProcess.onExit((event) => {
         const payload: TerminalExitPayload = {
+          paneId,
           exitCode: event.exitCode,
           signal: event.signal
         };
-        this.ptyProcess = null;
+        this.panes.delete(paneId);
         this.events.emit('exit', payload);
       });
 
       return { ok: true, shell };
     } catch (error) {
       console.error('Failed to start PTY process', error);
-      this.ptyProcess = null;
-      this.shell = null;
+      this.panes.delete(paneId);
       return {
         ok: false,
-        error: error instanceof Error ? error.message : 'PTYの起動に失敗しました。'
+        error: error instanceof Error ? error.message : 'Failed to start the PTY process.'
       };
     }
   }
 
-  async restart(): Promise<TerminalStartResult> {
-    this.dispose();
-    return this.start();
+  async restart(paneId: string): Promise<TerminalStartResult> {
+    this.close(paneId);
+    return this.start(paneId);
   }
 
-  write(data: string): void {
-    if (!this.ptyProcess) {
+  write(paneId: string, data: string): void {
+    const pane = this.panes.get(paneId);
+    if (!pane) {
       throw new Error('PTY process is not running.');
     }
-    this.ptyProcess.write(data);
+
+    pane.ptyProcess.write(data);
   }
 
   resize(payload: TerminalResizePayload): void {
-    if (!this.ptyProcess) {
+    const pane = this.panes.get(payload.paneId);
+    if (!pane) {
       return;
     }
 
     const cols = Math.max(2, Math.floor(payload.cols));
     const rows = Math.max(1, Math.floor(payload.rows));
-    this.ptyProcess.resize(cols, rows);
+    pane.ptyProcess.resize(cols, rows);
   }
 
-  dispose(): void {
-    if (!this.ptyProcess) {
+  close(paneId: string): void {
+    const pane = this.panes.get(paneId);
+    if (!pane) {
       return;
     }
 
     try {
-      this.ptyProcess.kill();
+      pane.ptyProcess.kill();
     } catch (error) {
       console.error('Failed to kill PTY process', error);
     } finally {
-      this.ptyProcess = null;
-      this.shell = null;
+      this.panes.delete(paneId);
+    }
+  }
+
+  dispose(): void {
+    for (const paneId of this.panes.keys()) {
+      this.close(paneId);
     }
   }
 
@@ -128,17 +157,18 @@ export class PtyManager {
       return await import('node-pty');
     } catch (error) {
       console.error('Failed to load node-pty', error);
-      throw new Error('node-pty のロードに失敗しました。npm install の結果とWindowsビルド環境を確認してください。');
+      throw new Error('Failed to load node-pty. Run npm install and check the Windows build tools.');
     }
   }
 
-  private updateCurrentCwd(data: string): void {
+  private updateCurrentCwd(paneId: string, data: string): void {
+    const pane = this.panes.get(paneId);
     const cwd = extractOsc7Cwd(data);
-    if (!cwd || cwd === this.currentCwd) {
+    if (!pane || !cwd || cwd === pane.currentCwd) {
       return;
     }
 
-    this.currentCwd = cwd;
-    this.events.emit('cwdChange', { cwd });
+    pane.currentCwd = cwd;
+    this.events.emit('cwdChange', { paneId, cwd });
   }
 }

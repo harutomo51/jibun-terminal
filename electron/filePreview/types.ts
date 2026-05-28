@@ -10,5 +10,5 @@ export interface FilePreviewOpenResult {
 }
 
 export interface FilePreviewBridgeApi {
-  open: (relativePath: string) => Promise<FilePreviewOpenResult>;
+  open: (relativePath: string, paneId?: string) => Promise<FilePreviewOpenResult>;
 }

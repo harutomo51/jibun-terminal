@@ -8,6 +8,7 @@ describe('TERMINAL_CHANNELS', () => {
       input: 'terminal:input',
       resize: 'terminal:resize',
       restart: 'terminal:restart',
+      close: 'terminal:close',
       onData: 'terminal:onData',
       onExit: 'terminal:onExit',
       onCwdChange: 'terminal:onCwdChange'

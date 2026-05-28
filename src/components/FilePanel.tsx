@@ -12,7 +12,11 @@ interface FilePanelState {
   loading: boolean;
 }
 
-export function FilePanel(): JSX.Element {
+interface FilePanelProps {
+  activePaneId: string;
+}
+
+export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
   const [state, setState] = useState<FilePanelState>({
     rootPath: '',
     nodes: [],
@@ -24,7 +28,7 @@ export function FilePanel(): JSX.Element {
     setState((current) => ({ ...current, loading: true, error: null }));
 
     try {
-      const result = await getFileTreeBridge().list();
+      const result = await getFileTreeBridge().list(activePaneId);
       if (!result.ok) {
         setState({
           rootPath: result.rootPath ?? '',
@@ -50,7 +54,7 @@ export function FilePanel(): JSX.Element {
         loading: false
       });
     }
-  }, []);
+  }, [activePaneId]);
 
   const openPreview = async (node: FileTreeNode) => {
     if (node.kind !== 'file') {
@@ -58,7 +62,7 @@ export function FilePanel(): JSX.Element {
     }
 
     try {
-      const result = await getFilePreviewBridge().open(node.relativePath);
+      const result = await getFilePreviewBridge().open(node.relativePath, activePaneId);
       if (!result.ok) {
         setState((current) => ({
           ...current,
@@ -79,12 +83,14 @@ export function FilePanel(): JSX.Element {
   }, [loadFileTree]);
 
   useEffect(() => {
-    const removeCwdListener = getTerminalBridge().onCwdChange(() => {
-      void loadFileTree();
+    const removeCwdListener = getTerminalBridge().onCwdChange((payload) => {
+      if (payload.paneId === activePaneId) {
+        void loadFileTree();
+      }
     });
 
     return removeCwdListener;
-  }, [loadFileTree]);
+  }, [activePaneId, loadFileTree]);
 
   return (
     <section className="file-panel" aria-label="current directory files">

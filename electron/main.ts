@@ -6,7 +6,7 @@ import { FILE_PREVIEW_CHANNELS } from './filePreview/types';
 import { readFileTree } from './fileTree/fileTree';
 import { FILE_TREE_CHANNELS } from './fileTree/types';
 import { PtyManager } from './terminal/ptyManager';
-import { TERMINAL_CHANNELS, type TerminalResizePayload } from './terminal/types';
+import { TERMINAL_CHANNELS, type TerminalInputPayload, type TerminalPanePayload, type TerminalResizePayload } from './terminal/types';
 
 let mainWindow: BrowserWindow | null = null;
 const ptyManager = new PtyManager();
@@ -27,8 +27,8 @@ function createWindow(): void {
     }
   });
 
-  ptyManager.onData((data) => {
-    mainWindow?.webContents.send(TERMINAL_CHANNELS.onData, data);
+  ptyManager.onData((payload) => {
+    mainWindow?.webContents.send(TERMINAL_CHANNELS.onData, payload);
   });
 
   ptyManager.onExit((payload) => {
@@ -110,13 +110,16 @@ function sendAppearanceCommand(command: AppearanceCommand): void {
 }
 
 function registerIpcHandlers(): void {
-  ipcMain.handle(FILE_PREVIEW_CHANNELS.open, (_event, relativePath: string) => openFilePreview(ptyManager.getCurrentCwd(), relativePath));
-  ipcMain.handle(FILE_TREE_CHANNELS.list, () => readFileTree(ptyManager.getCurrentCwd()));
-  ipcMain.handle(TERMINAL_CHANNELS.start, () => ptyManager.start());
-  ipcMain.handle(TERMINAL_CHANNELS.restart, () => ptyManager.restart());
-  ipcMain.handle(TERMINAL_CHANNELS.input, (_event, data: string) => {
+  ipcMain.handle(FILE_PREVIEW_CHANNELS.open, (_event, relativePath: string, paneId?: string) => openFilePreview(ptyManager.getCurrentCwd(paneId), relativePath));
+  ipcMain.handle(FILE_TREE_CHANNELS.list, (_event, paneId?: string) => readFileTree(ptyManager.getCurrentCwd(paneId)));
+  ipcMain.handle(TERMINAL_CHANNELS.start, (_event, payload: TerminalPanePayload) => ptyManager.start(payload.paneId));
+  ipcMain.handle(TERMINAL_CHANNELS.restart, (_event, payload: TerminalPanePayload) => ptyManager.restart(payload.paneId));
+  ipcMain.handle(TERMINAL_CHANNELS.close, (_event, payload: TerminalPanePayload) => {
+    ptyManager.close(payload.paneId);
+  });
+  ipcMain.handle(TERMINAL_CHANNELS.input, (_event, payload: TerminalInputPayload) => {
     try {
-      ptyManager.write(data);
+      ptyManager.write(payload.paneId, payload.data);
     } catch (error) {
       console.error('Failed to write PTY input', error);
       throw error;
