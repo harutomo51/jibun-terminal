@@ -25,6 +25,7 @@ export type AppLogLevel = 'info' | 'error';
 interface TerminalPane {
   id: string;
   shellName: string;
+  cwd: string;
   tool: TerminalTool;
 }
 
@@ -35,7 +36,7 @@ export default function App(): JSX.Element {
   const [terminalOpacity, setTerminalOpacity] = useState(0.78);
   const [isAppearanceOpen, setAppearanceOpen] = useState(false);
   const [isSidePanelVisible, setSidePanelVisible] = useState(true);
-  const [panes, setPanes] = useState<TerminalPane[]>([{ id: 'pane-1', shellName: 'Not started', tool: 'none' }]);
+  const [panes, setPanes] = useState<TerminalPane[]>([{ id: 'pane-1', shellName: 'Not started', cwd: '', tool: 'none' }]);
   const [activePaneId, setActivePaneId] = useState('pane-1');
   const [terminalLayout, setTerminalLayout] = useState<TerminalLayoutNode>(() => createInitialTerminalLayout('pane-1'));
 
@@ -52,6 +53,10 @@ export default function App(): JSX.Element {
     setPanes((current) => current.map((pane) => (pane.id === paneId ? { ...pane, shellName } : pane)));
   }, []);
 
+  const updatePaneCwd = useCallback((paneId: string, cwd: string) => {
+    setPanes((current) => current.map((pane) => (pane.id === paneId ? { ...pane, cwd } : pane)));
+  }, []);
+
   const updatePaneTool = useCallback((paneId: string, tool: TerminalTool) => {
     setPanes((current) => current.map((pane) => (pane.id === paneId ? { ...pane, tool } : pane)));
   }, []);
@@ -61,7 +66,7 @@ export default function App(): JSX.Element {
     setTerminalLayout((current) => splitTerminalPane(current, paneId, newPaneId, direction));
     setPanes((current) => {
       const index = current.findIndex((pane) => pane.id === paneId);
-      const newPane = { id: newPaneId, shellName: 'Not started', tool: 'none' as TerminalTool };
+      const newPane = { id: newPaneId, shellName: 'Not started', cwd: '', tool: 'none' as TerminalTool };
       if (index === -1) {
         return [...current, newPane];
       }
@@ -121,12 +126,13 @@ export default function App(): JSX.Element {
         onActivate={setActivePaneId}
         onClose={closePane}
         onShellChange={updatePaneShell}
+        onCwdChange={updatePaneCwd}
         onToolChange={updatePaneTool}
         onLog={addLog}
         onSplit={splitPane}
       />
     );
-  }, [activePaneId, addLog, closePane, panes, splitPane, updatePaneShell, updatePaneTool]);
+  }, [activePaneId, addLog, closePane, panes, splitPane, updatePaneShell, updatePaneCwd, updatePaneTool]);
 
   const cycleBackground = useCallback(() => {
     setBackgroundMode((current) => {
@@ -170,6 +176,18 @@ export default function App(): JSX.Element {
       return undefined;
     }
   }, [addLog, cycleBackground]);
+
+  useEffect(() => {
+    const bridge = getTerminalBridge();
+    return bridge.onCwdChange((payload) => {
+      updatePaneCwd(payload.paneId, payload.cwd);
+    });
+  }, [updatePaneCwd]);
+
+  useEffect(() => {
+    const activePane = panes.find((pane) => pane.id === activePaneId);
+    document.title = activePane?.cwd || 'fun-terminal-win11';
+  }, [activePaneId, panes]);
 
   const paneOrder = collectTerminalPaneIds(terminalLayout);
 

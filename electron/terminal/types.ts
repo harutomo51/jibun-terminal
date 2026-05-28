@@ -19,6 +19,7 @@ export interface ShellInfo {
 export interface TerminalStartResult {
   ok: boolean;
   shell?: ShellInfo;
+  cwd?: string;
   error?: string;
 }
 

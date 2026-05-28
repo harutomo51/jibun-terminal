@@ -56,7 +56,7 @@ export class PtyManager {
   async start(paneId: string): Promise<TerminalStartResult> {
     const existingPane = this.panes.get(paneId);
     if (existingPane) {
-      return { ok: true, shell: existingPane.shell };
+      return { ok: true, shell: existingPane.shell, cwd: existingPane.currentCwd };
     }
 
     const shell = resolvePowerShellCandidate();
@@ -95,7 +95,7 @@ export class PtyManager {
         this.events.emit('exit', payload);
       });
 
-      return { ok: true, shell };
+      return { ok: true, shell, cwd: pane.currentCwd };
     } catch (error) {
       console.error('Failed to start PTY process', error);
       this.panes.delete(paneId);

@@ -19,6 +19,7 @@ interface TerminalViewProps {
   onActivate: (paneId: string) => void;
   onClose: (paneId: string) => void;
   onShellChange: (paneId: string, shellName: string) => void;
+  onCwdChange: (paneId: string, cwd: string) => void;
   onToolChange: (paneId: string, tool: TerminalTool) => void;
   onLog: (message: string, level?: AppLogLevel) => void;
   onSplit: (paneId: string, direction: TerminalSplitDirection) => void;
@@ -34,6 +35,7 @@ export function TerminalView({
   onActivate,
   onClose,
   onShellChange,
+  onCwdChange,
   onToolChange,
   onLog,
   onSplit
@@ -149,6 +151,9 @@ export function TerminalView({
 
         setError(null);
         onShellChange(paneId, result.shell.displayName);
+        if (result.cwd) {
+          onCwdChange(paneId, result.cwd);
+        }
         onLog(`${result.shell.name} started.`);
         window.setTimeout(resizePty, 50);
       } catch (startError) {
@@ -170,7 +175,7 @@ export function TerminalView({
       terminalRef.current = null;
       fitAddonRef.current = null;
     };
-  }, [paneId, restartToken, onLog, onShellChange, onToolChange]);
+  }, [paneId, restartToken, onLog, onShellChange, onCwdChange, onToolChange]);
 
   useEffect(() => {
     if (isActive) {
