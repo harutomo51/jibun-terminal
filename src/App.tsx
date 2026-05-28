@@ -192,7 +192,7 @@ export default function App(): JSX.Element {
 
   useEffect(() => {
     const activePane = panes.find((pane) => pane.id === activePaneId);
-    document.title = activePane?.cwd || 'fun-terminal-win11';
+    document.title = activePane?.cwd ? `Quarterdeck : ${activePane.cwd}` : 'Quarterdeck';
   }, [activePaneId, panes]);
 
   useEffect(() => {

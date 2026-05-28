@@ -29,7 +29,7 @@ function createWindow(): void {
     height: 760,
     minWidth: 780,
     minHeight: 480,
-    title: 'fun-terminal-win11',
+    title: 'Quarterdeck',
     icon: getApplicationIconPath(),
     backgroundColor: '#10131a',
     webPreferences: {
@@ -67,7 +67,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
-    app.setAppUserModelId('fun-terminal-win11');
+    app.setAppUserModelId('com.harutomo51.quarterdeck');
   }
 
   registerIpcHandlers();

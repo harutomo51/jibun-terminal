@@ -2,7 +2,7 @@
 
 ## Overview
 
-`fun-terminal-win11` is split into three layers:
+`Quarterdeck` is split into three layers:
 
 - Electron main process: owns the PTY process and IPC handlers.
 - Preload script: exposes minimal `window.terminalApi`, `window.fileTreeApi`, and `window.filePreviewApi` bridges.

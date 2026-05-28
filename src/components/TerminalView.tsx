@@ -147,7 +147,7 @@ export function TerminalView({
         if (!result.ok || !result.shell) {
           const message = result.error ?? 'Failed to start PowerShell.';
           setError(message);
-          terminal.writeln(`\r\n[fun-terminal-win11] ${message}`);
+          terminal.writeln(`\r\n[Quarterdeck] ${message}`);
           onLog(message, 'error');
           return;
         }

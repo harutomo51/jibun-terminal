@@ -1,5 +1,5 @@
 {
-  "name": "fun-terminal-win11",
+  "name": "quarterdeck",
   "version": "0.1.0",
   "private": true,
   "description": "Windows 11 PowerShell-compatible custom terminal feasibility MVP.",
@@ -13,8 +13,8 @@
     "dist": "npm run build && electron-builder --win"
   },
   "build": {
-    "appId": "com.harutomo51.jibun-terminal",
-    "productName": "Jibun Terminal",
+    "appId": "com.harutomo51.quarterdeck",
+    "productName": "Quarterdeck",
     "directories": {
       "output": "dist"
     },

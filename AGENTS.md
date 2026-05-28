@@ -1,4 +1,4 @@
-# fun-terminal-win11 Agent Guide
+# Quarterdeck Agent Guide
 
 ## Project Purpose
 

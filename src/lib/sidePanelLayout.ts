@@ -1,7 +1,7 @@
 export const SIDE_PANEL_MIN_WIDTH = 220;
 export const SIDE_PANEL_DEFAULT_WIDTH = 300;
 export const SIDE_PANEL_MIN_MAIN_WIDTH = 360;
-const STORAGE_KEY = 'jibun-terminal:side-panel-width';
+const STORAGE_KEY = 'quarterdeck:side-panel-width';
 
 export function clampSidePanelWidth(width: number, viewportWidth: number): number {
   if (!Number.isFinite(width)) {

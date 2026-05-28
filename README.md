@@ -1,4 +1,4 @@
-# fun-terminal-win11
+# Quarterdeck
 
 Windows 11で「PowerShell互換の自作ターミナル」を実現できるか確認するための技術検証MVPです。PowerShellコマンドは再実装せず、Electronメインプロセスから `node-pty` 経由で既存の `pwsh.exe` または `powershell.exe` を起動します。
 
