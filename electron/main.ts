@@ -10,7 +10,14 @@ import { TERMINAL_CHANNELS, type TerminalInputPayload, type TerminalPanePayload,
 
 let mainWindow: BrowserWindow | null = null;
 const ptyManager = new PtyManager();
-const applicationIconPath = join(__dirname, '../../image/icon/application_icon.png');
+
+function getApplicationIconPath(): string {
+  if (app.isPackaged) {
+    return join(process.resourcesPath, 'image/icon/application_icon.png');
+  }
+
+  return join(__dirname, '../../image/icon/application_icon.png');
+}
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -19,7 +26,7 @@ function createWindow(): void {
     minWidth: 780,
     minHeight: 480,
     title: 'fun-terminal-win11',
-    icon: applicationIconPath,
+    icon: getApplicationIconPath(),
     backgroundColor: '#10131a',
     webPreferences: {
       preload: join(__dirname, '../preload/preload.js'),
