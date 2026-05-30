@@ -2,6 +2,11 @@ import { contextBridge, ipcRenderer } from 'electron';
 import { APPEARANCE_CHANNELS, type AppearanceBridgeApi, type AppearanceCommandPayload } from './appearance/types';
 import { FILE_PREVIEW_CHANNELS, type FilePreviewBridgeApi, type FilePreviewOpenResult } from './filePreview/types';
 import { FILE_TREE_CHANNELS, type FileTreeBridgeApi, type FileTreeResult } from './fileTree/types';
+import {
+  GIT_COMMIT_DETAIL_CHANNELS,
+  type GitCommitDetailBridgeApi,
+  type GitCommitDetailResult
+} from './gitCommitDetail/types';
 import { GIT_LOG_CHANNELS, type GitLogBridgeApi, type GitLogResult } from './gitLog/types';
 import { GIT_WORKTREE_CHANNELS, type GitWorktreeBridgeApi, type GitWorktreeResult } from './gitWorktree/types';
 import {
@@ -54,6 +59,10 @@ const gitWorktreeApi: GitWorktreeBridgeApi = {
   list: (paneId?: string) => ipcRenderer.invoke(GIT_WORKTREE_CHANNELS.list, paneId) as Promise<GitWorktreeResult>
 };
 
+const gitCommitDetailApi: GitCommitDetailBridgeApi = {
+  open: (hash: string, paneId?: string) => ipcRenderer.invoke(GIT_COMMIT_DETAIL_CHANNELS.open, hash, paneId) as Promise<GitCommitDetailResult>
+};
+
 const appearanceApi: AppearanceBridgeApi = {
   onCommand: (callback: (payload: AppearanceCommandPayload) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: AppearanceCommandPayload) => callback(payload);
@@ -67,4 +76,5 @@ contextBridge.exposeInMainWorld('fileTreeApi', fileTreeApi);
 contextBridge.exposeInMainWorld('filePreviewApi', filePreviewApi);
 contextBridge.exposeInMainWorld('gitLogApi', gitLogApi);
 contextBridge.exposeInMainWorld('gitWorktreeApi', gitWorktreeApi);
+contextBridge.exposeInMainWorld('gitCommitDetailApi', gitCommitDetailApi);
 contextBridge.exposeInMainWorld('appearanceApi', appearanceApi);

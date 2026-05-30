@@ -3,6 +3,7 @@
 import type { TerminalBridgeApi } from '../electron/terminal/types';
 import type { FileTreeBridgeApi } from '../electron/fileTree/types';
 import type { FilePreviewBridgeApi } from '../electron/filePreview/types';
+import type { GitCommitDetailBridgeApi } from '../electron/gitCommitDetail/types';
 import type { GitLogBridgeApi } from '../electron/gitLog/types';
 import type { GitWorktreeBridgeApi } from '../electron/gitWorktree/types';
 import type { AppearanceBridgeApi } from '../electron/appearance/types';
@@ -14,6 +15,7 @@ declare global {
     filePreviewApi?: FilePreviewBridgeApi;
     gitLogApi?: GitLogBridgeApi;
     gitWorktreeApi?: GitWorktreeBridgeApi;
+    gitCommitDetailApi?: GitCommitDetailBridgeApi;
     appearanceApi?: AppearanceBridgeApi;
   }
 }

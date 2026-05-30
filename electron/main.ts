@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { APPEARANCE_CHANNELS, type AppearanceCommand } from './appearance/types';
 import { openFilePreview } from './filePreview/filePreview';
 import { FILE_PREVIEW_CHANNELS } from './filePreview/types';
+import { openGitCommitDetail } from './gitCommitDetail/gitCommitDetail';
+import { GIT_COMMIT_DETAIL_CHANNELS } from './gitCommitDetail/types';
 import { readFileTree } from './fileTree/fileTree';
 import { FILE_TREE_CHANNELS } from './fileTree/types';
 import { readGitLog } from './gitLog/gitLog';
@@ -51,6 +53,8 @@ function createWindow(): void {
   ptyManager.onCwdChange((payload) => {
     mainWindow?.webContents.send(TERMINAL_CHANNELS.onCwdChange, payload);
   });
+
+  mainWindow.maximize();
 
   if (process.env.ELECTRON_RENDERER_URL) {
     void mainWindow.loadURL(process.env.ELECTRON_RENDERER_URL);
@@ -131,6 +135,7 @@ function registerIpcHandlers(): void {
   ipcMain.handle(FILE_TREE_CHANNELS.list, (_event, paneId?: string) => readFileTree(ptyManager.getCurrentCwd(paneId)));
   ipcMain.handle(GIT_LOG_CHANNELS.list, (_event, paneId?: string) => readGitLog(ptyManager.getCurrentCwd(paneId)));
   ipcMain.handle(GIT_WORKTREE_CHANNELS.list, (_event, paneId?: string) => readGitWorktrees(ptyManager.getCurrentCwd(paneId)));
+  ipcMain.handle(GIT_COMMIT_DETAIL_CHANNELS.open, (_event, hash: string, paneId?: string) => openGitCommitDetail(ptyManager.getCurrentCwd(paneId), hash));
   ipcMain.handle(TERMINAL_CHANNELS.start, (_event, payload: TerminalStartPayload) => ptyManager.start(payload.paneId, payload.cwd));
   ipcMain.handle(TERMINAL_CHANNELS.restart, (_event, payload: TerminalPanePayload) => ptyManager.restart(payload.paneId));
   ipcMain.handle(TERMINAL_CHANNELS.close, (_event, payload: TerminalPanePayload) => {

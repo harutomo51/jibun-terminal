@@ -610,14 +610,36 @@ button {
 }
 
 .git-graph__row {
+  min-width: 0;
+}
+
+.git-graph__row-button {
   display: flex;
   align-items: center;
   gap: 6px;
+  width: 100%;
+  height: 100%;
   padding: 0 10px 0 6px;
   min-width: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
   color: #e7edff;
+  font: inherit;
+  text-align: left;
   white-space: nowrap;
   overflow: hidden;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.git-graph__row-button:hover {
+  background: rgba(124, 160, 255, 0.14);
+}
+
+.git-graph__row-button:focus-visible {
+  outline: 2px solid var(--git-lane-0, #7ca0ff);
+  outline-offset: -2px;
 }
 
 .git-graph__decorations {

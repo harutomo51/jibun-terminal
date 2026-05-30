@@ -22,6 +22,7 @@ import type { FileTreeNode } from '../../electron/fileTree/types';
 import type { GitCommit } from '../../electron/gitLog/types';
 import type { GitWorktree } from '../../electron/gitWorktree/types';
 import { getFileIconKind, type FileIconKind } from '../lib/fileIcon';
+import { getGitCommitDetailBridge } from '../lib/gitCommitDetailBridge';
 import { getFilePreviewBridge } from '../lib/filePreviewBridge';
 import { getFileTreeBridge } from '../lib/fileTreeBridge';
 import {
@@ -200,6 +201,27 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
     }
   };
 
+  const openCommitDetail = useCallback(
+    async (hash: string) => {
+      try {
+        const result = await getGitCommitDetailBridge().open(hash, activePaneId);
+        if (!result.ok) {
+          setGitState((current) => ({
+            ...current,
+            error: result.error ?? 'Commit detail could not be loaded.'
+          }));
+        }
+      } catch (error) {
+        console.error('Renderer Git commit detail failed', error);
+        setGitState((current) => ({
+          ...current,
+          error: error instanceof Error ? error.message : 'Commit detail could not be loaded.'
+        }));
+      }
+    },
+    [activePaneId]
+  );
+
   useEffect(() => {
     void loadFileTree();
   }, [loadFileTree]);
@@ -281,7 +303,11 @@ export function FilePanel({ activePaneId }: FilePanelProps): JSX.Element {
       </div>
         </>
       ) : activeTab === 'git' ? (
-        <GitGraphPanel state={gitState} onRefresh={() => void loadGitLog()} />
+        <GitGraphPanel
+          state={gitState}
+          onRefresh={() => void loadGitLog()}
+          onSelectCommit={(hash) => void openCommitDetail(hash)}
+        />
       ) : (
         <GitWorktreePanel state={worktreeState} onRefresh={() => void loadGitWorktrees()} />
       )}
@@ -295,7 +321,15 @@ const GIT_GRAPH_PADDING_X = 10;
 const GIT_GRAPH_NODE_RADIUS = 4.5;
 const GIT_GRAPH_LANE_COLOR_COUNT = 8;
 
-function GitGraphPanel({ state, onRefresh }: { state: GitPanelState; onRefresh: () => void }): JSX.Element {
+function GitGraphPanel({
+  state,
+  onRefresh,
+  onSelectCommit
+}: {
+  state: GitPanelState;
+  onRefresh: () => void;
+  onSelectCommit: (hash: string) => void;
+}): JSX.Element {
   const layout = useMemo(() => computeGitGraphLayout(state.commits), [state.commits]);
   const hasCommits = !state.loading && !state.error && layout.nodes.length > 0;
 
@@ -316,7 +350,7 @@ function GitGraphPanel({ state, onRefresh }: { state: GitPanelState; onRefresh: 
         {!state.loading && !state.error && layout.nodes.length === 0 ? (
           <p className="panel-empty">No commits to display.</p>
         ) : null}
-        {hasCommits ? <GitGraphView layout={layout} /> : null}
+        {hasCommits ? <GitGraphView layout={layout} onSelectCommit={onSelectCommit} /> : null}
       </div>
     </>
   );
@@ -400,7 +434,13 @@ function GitWorktreeRow({ worktree }: { worktree: GitWorktree }): JSX.Element {
   );
 }
 
-function GitGraphView({ layout }: { layout: GitGraphLayout }): JSX.Element {
+function GitGraphView({
+  layout,
+  onSelectCommit
+}: {
+  layout: GitGraphLayout;
+  onSelectCommit: (hash: string) => void;
+}): JSX.Element {
   const laneCount = Math.max(layout.laneCount, 1);
   const canvasWidth = GIT_GRAPH_PADDING_X * 2 + laneCount * GIT_GRAPH_LANE_WIDTH;
   const canvasHeight = layout.nodes.length * GIT_GRAPH_ROW_HEIGHT;
@@ -434,17 +474,24 @@ function GitGraphView({ layout }: { layout: GitGraphLayout }): JSX.Element {
       </svg>
       <ol className="git-graph__rows">
         {layout.nodes.map((node) => (
-          <li key={node.hash} className="git-graph__row" title={`${node.hash}  ${node.subject}`}>
-            {node.decorations.length > 0 ? (
-              <span className="git-graph__decorations">
-                {node.decorations.map((decoration) => (
-                  <span className={getDecorationClassName(decoration)} key={decoration}>
-                    {decoration}
-                  </span>
-                ))}
-              </span>
-            ) : null}
-            <span className="git-graph__subject">{node.subject}</span>
+          <li key={node.hash} className="git-graph__row">
+            <button
+              type="button"
+              className="git-graph__row-button"
+              title={`${node.hash}  ${node.subject}`}
+              onClick={() => onSelectCommit(node.hash)}
+            >
+              {node.decorations.length > 0 ? (
+                <span className="git-graph__decorations">
+                  {node.decorations.map((decoration) => (
+                    <span className={getDecorationClassName(decoration)} key={decoration}>
+                      {decoration}
+                    </span>
+                  ))}
+                </span>
+              ) : null}
+              <span className="git-graph__subject">{node.subject}</span>
+            </button>
           </li>
         ))}
       </ol>

@@ -3,6 +3,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { basename, extname, isAbsolute, resolve, sep } from 'node:path';
 import hljs from 'highlight.js/lib/common';
 import MarkdownIt from 'markdown-it';
+import { closeWindowOnEscape } from '../window/closeOnEscape';
 import type { FilePreviewKind, FilePreviewOpenResult } from './types';
 
 const markdown = new MarkdownIt({
@@ -126,6 +127,8 @@ export async function openFilePreview(rootPath: string, relativePath: string): P
         sandbox: true
       }
     });
+
+    closeWindowOnEscape(previewWindow);
 
     await previewWindow.loadURL(createPreviewDataUrl(absolutePath, content, detectPreviewKind(absolutePath)));
     return { ok: true };
